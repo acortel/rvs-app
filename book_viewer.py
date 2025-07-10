@@ -63,17 +63,17 @@ class BookViewerWindow(QMainWindow):
         control_panel.setContentsMargins(10, 10, 10, 10)
         control_panel.setSpacing(5)  # Reduced spacing between buttons
         
-        # Folder selection button (fixed width)
-        self.folder_btn = QPushButton("Select Folder")
-        self.folder_btn.setStyleSheet(button_style)
-        self.folder_btn.setFixedWidth(120)
-        self.folder_btn.clicked.connect(self.select_folder)
-        control_panel.addWidget(self.folder_btn)
+        # File selection button (fixed width)
+        self.file_btn = QPushButton("Select File")
+        self.file_btn.setStyleSheet(button_style)
+        self.file_btn.setFixedWidth(120)
+        self.file_btn.clicked.connect(self.select_file)
+        control_panel.addWidget(self.file_btn)
         
         # Current file label (fixed width)
-        self.file_label = QLabel("No folder selected")
+        self.file_label = QLabel("No file selected")
         self.file_label.setStyleSheet("QLabel { color: #212121; font-weight: bold; }")
-        self.file_label.setFixedWidth(300)
+        self.file_label.setFixedWidth(600)
         self.file_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         control_panel.addWidget(self.file_label)
         
@@ -150,61 +150,59 @@ class BookViewerWindow(QMainWindow):
                 pass  # Ignore close errors
             self.connection = None
         
-    def select_folder(self):
-        """Open folder dialog to select a folder containing PDF files."""
-        folder_path = QFileDialog.getExistingDirectory(
-            self, 
-            "Select Folder with PDF Files",
+    def select_file(self):
+        """Open file dialog to select a specific PDF file."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select PDF File",
             self.default_directory,
-            QFileDialog.ShowDirsOnly
+            "PDF Files (*.pdf)"
         )
-        
-        if folder_path:
+        if file_path:
+            folder_path = os.path.dirname(file_path)
             self.current_folder = folder_path
-            self.load_pdf_files()
-            
-            # Log folder selection
+            self.load_pdf_files(selected_file=file_path)
+            # Log file selection
             conn = self.create_connection()
             try:
                 AuditLogger.log_action(
-                    conn, 
-                    self.current_user, 
-                    "BOOK_VIEWER_FOLDER_SELECTED", 
-                    f"Selected folder: {folder_path}"
+                    conn,
+                    self.current_user,
+                    "BOOK_VIEWER_FILE_SELECTED",
+                    f"Selected file: {file_path}"
                 )
                 conn.commit()
             except Exception as e:
-                print(f"Failed to log folder selection: {e}")
+                print(f"Failed to log file selection: {e}")
             finally:
                 self.closeConnection()
-            
-    def load_pdf_files(self):
-        """Load all PDF files from the selected folder."""
+
+    def load_pdf_files(self, selected_file=None):
+        """Load all PDF files from the selected folder. If selected_file is given, set current index to it."""
         try:
             self.pdf_files = []
-            
             # Get all PDF files from the folder
             for file in os.listdir(self.current_folder):
                 if file.lower().endswith('.pdf'):
                     file_path = os.path.join(self.current_folder, file)
                     self.pdf_files.append(file_path)
-            
             # Sort files naturally (1, 2, 10 instead of 1, 10, 2)
             self.pdf_files.sort(key=lambda x: self.natural_sort_key(x))
-            
             if self.pdf_files:
-                self.current_index = 0
+                if selected_file and selected_file in self.pdf_files:
+                    self.current_index = self.pdf_files.index(selected_file)
+                else:
+                    self.current_index = 0
                 self.load_current_file()
                 self.update_navigation_buttons()
                 self.statusBar().showMessage(f"Loaded {len(self.pdf_files)} PDF files")
-                
                 # Log file loading
                 conn = self.create_connection()
                 try:
                     AuditLogger.log_action(
-                        conn, 
-                        self.current_user, 
-                        "BOOK_VIEWER_FILES_LOADED", 
+                        conn,
+                        self.current_user,
+                        "BOOK_VIEWER_FILES_LOADED",
                         f"Loaded {len(self.pdf_files)} PDF files from folder"
                     )
                     conn.commit()
@@ -217,14 +215,13 @@ class BookViewerWindow(QMainWindow):
                 self.counter_label.setText("0 / 0")
                 self.pdf_viewer.clear_pdf()
                 self.statusBar().showMessage("No PDF files found in the selected folder")
-                
                 # Log no files found
                 conn = self.create_connection()
                 try:
                     AuditLogger.log_action(
-                        conn, 
-                        self.current_user, 
-                        "BOOK_VIEWER_NO_FILES", 
+                        conn,
+                        self.current_user,
+                        "BOOK_VIEWER_NO_FILES",
                         "No PDF files found in selected folder"
                     )
                     conn.commit()
@@ -232,7 +229,6 @@ class BookViewerWindow(QMainWindow):
                     print(f"Failed to log no files found: {e}")
                 finally:
                     self.closeConnection()
-                
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error loading PDF files: {str(e)}")
             self.statusBar().showMessage("Error loading PDF files")

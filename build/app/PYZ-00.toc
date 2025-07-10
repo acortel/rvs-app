@@ -509,6 +509,9 @@
    'C:\\ayie\\Coding Projects\\RVS APP\\RVS '
    'dev\\.venv\\Lib\\site-packages\\blinker\\base.py',
    'PYMODULE'),
+  ('book_viewer',
+   'C:\\ayie\\Coding Projects\\RVS APP\\RVS dev\\book_viewer.py',
+   'PYMODULE'),
   ('botocore',
    'C:\\ayie\\Coding Projects\\RVS APP\\RVS '
    'dev\\.venv\\Lib\\site-packages\\botocore\\__init__.py',
