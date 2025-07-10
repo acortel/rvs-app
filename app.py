@@ -28,6 +28,7 @@ from audit_logger import AuditLogger
 from audit_log_viewer import AuditLogViewer
 from releasing_docs import ReleaseDocumentWindow
 from releasing_log_viewer import ReleasingLogViewer
+from book_viewer import BookViewerWindow
 
 from flask_server.app import start_server
 import threading
@@ -518,15 +519,17 @@ class MainWindow(QMainWindow):
         # Add sub-menu buttons
         self.statistics_btn = QPushButton("Statistics")
         self.tagging_btn = QPushButton("Tagging")
+        self.book_viewer_btn = QPushButton("Book Viewer")
         
         # Set object names for sub-menu styling
-        for btn in [self.statistics_btn, self.tagging_btn]:
+        for btn in [self.statistics_btn, self.tagging_btn, self.book_viewer_btn]:
             btn.setObjectName("sub_menu_btn")
         
         # Add buttons to sub-menu layout
         self.sub_menu_layout.addWidget(self.statistics_btn)
         self.sub_menu_layout.addWidget(self.tagging_btn)
-        
+        self.sub_menu_layout.addWidget(self.book_viewer_btn)
+
         # Add sub-menu to other features container
         self.other_features_layout.addWidget(self.other_features_sub_menu)
         
@@ -539,7 +542,7 @@ class MainWindow(QMainWindow):
         # Connect sub-menu buttons to their respective pages
         self.statistics_btn.clicked.connect(self.open_statistics_tools)
         self.tagging_btn.clicked.connect(self.open_tagging_tools)
-
+        self.book_viewer_btn.clicked.connect(self.open_book_viewer)
         # Create User Management Menu Container
         self.user_management_container = QFrame()
         self.user_management_layout = QVBoxLayout(self.user_management_container)
@@ -1468,6 +1471,31 @@ class MainWindow(QMainWindow):
                 self.current_user,
                 "OPEN_WINDOW",
                 {"window": "TaggingWindow"}
+            )
+            conn.commit()
+        finally:
+            self.closeConnection()
+    
+    # open book viewer window
+    def open_book_viewer(self):
+        conn = self.create_connection()
+        try:
+            book_viewer = self.windows.get('book_viewer')
+            if book_viewer is None or not book_viewer.isVisible():
+                book_viewer = BookViewerWindow(self.current_user, parent=self)
+                book_viewer.setParent(self)
+                book_viewer.setWindowFlag(Qt.Window)
+                self.windows['book_viewer'] = book_viewer
+                
+            book_viewer.showMaximized()
+            book_viewer.raise_()
+            book_viewer.activateWindow()
+
+            AuditLogger.log_action(
+                conn,
+                self.current_user,
+                "OPEN_WINDOW",
+                {"window": "BookViewerWindow"}
             )
             conn.commit()
         finally:
