@@ -120,3 +120,6 @@
 - Added an option to select the type of record
 - Changed the Keys to be generated statistics from
 - Packaged the app for deployment
+
+# JULY 3, 2025
+- Added the Book Viewer functionality to allow staff to view book pages digitally
