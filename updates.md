@@ -121,6 +121,9 @@
 - Changed the Keys to be generated statistics from
 - Packaged the app for deployment
 
-# JULY 3, 2025
+# JULY 10, 2025
 - Added the Book Viewer functionality to allow staff to view book pages digitally
 - Packaged eVerify SDK
+
+# July 11, 2025
+- Finalized and prepared my everify module
