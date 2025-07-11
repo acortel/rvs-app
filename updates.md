@@ -123,3 +123,4 @@
 
 # JULY 3, 2025
 - Added the Book Viewer functionality to allow staff to view book pages digitally
+- Packaged eVerify SDK
