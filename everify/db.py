@@ -1,5 +1,8 @@
 import psycopg2
+import logging
 from .config import get_config
+
+logger = logging.getLogger(__name__)
 
 class EVerifyDB:
     def __init__(self, config=None):
@@ -9,6 +12,21 @@ class EVerifyDB:
 
     def get_connection(self):
         return psycopg2.connect(**self.config)
+
+    def test_connection(self) -> bool:
+        """Test if database connection is working."""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            cursor.close()
+            conn.close()
+            logger.info("Database connection test successful")
+            return True
+        except Exception as e:
+            logger.error(f"Database connection test failed: {e}")
+            return False
 
     def store_verification(self, person_data: dict):
         # person_data should contain all required fields

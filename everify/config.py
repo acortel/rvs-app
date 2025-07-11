@@ -13,3 +13,18 @@ def get_config():
             'dbname': os.getenv('PGDATABASE', 'rvs_db')
         }
     }
+
+def validate_config():
+    """Validate that required configuration is present."""
+    config = get_config()
+    missing = []
+    
+    if not config['CLIENT_ID']:
+        missing.append('CLIENT_ID')
+    if not config['CLIENT_SECRET']:
+        missing.append('CLIENT_SECRET')
+    
+    if missing:
+        raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
+    
+    return config

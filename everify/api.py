@@ -1,8 +1,13 @@
 import requests
 import jwt
 import time
+import logging
 from typing import Optional
 import webbrowser
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class EVerifyClient:
     def __init__(self, client_id: str, client_secret: str, base_url: str = 'https://ws.everify.gov.ph/api'):
@@ -37,11 +42,13 @@ class EVerifyClient:
                 self.access_token = data["data"]["access_token"]
                 decoded = jwt.decode(self.access_token, options={"verify_signature": False})
                 self.token_expiry = int(decoded["exp"])
+                logger.info(f"Token refreshed successfully. Expires at: {self.token_expiry}")
                 return self.access_token
             else:
+                logger.error(f"Token refresh failed. Status: {response.status_code}")
                 return None
         except Exception as e:
-            print(f"Token refresh failed: {e}")
+            logger.error(f"Token refresh failed: {e}")
             return None
 
     def get_access_token(self) -> Optional[str]:
@@ -97,10 +104,24 @@ class EVerifyClient:
         except Exception as e:
             return {"error": str(e)}
 
+    def is_liveness_server_available(self, liveness_result_url: str = None) -> bool:
+        """Check if the liveness server is running and accessible."""
+        url = liveness_result_url or "http://127.0.0.1:5000/liveness_result"
+        try:
+            response = requests.get(url, timeout=2)
+            return response.status_code == 200
+        except:
+            return False
+
     def start_liveness_check(self, liveness_url: str = None):
+        """Start liveness check by opening browser. Returns URL or None if server unavailable."""
         url = liveness_url or "http://127.0.0.1:5000/liveness"
-        webbrowser.open(url)
-        return url
+        try:
+            webbrowser.open(url)
+            return url
+        except Exception as e:
+            print(f"Failed to open liveness URL: {e}")
+            return None
 
     def get_liveness_result(self, liveness_result_url: str = None) -> dict:
         url = liveness_result_url or "http://127.0.0.1:5000/liveness_result"
