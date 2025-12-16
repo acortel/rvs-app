@@ -108,7 +108,7 @@ def _format_date_to_long(date_str: str) -> str:
         from datetime import datetime
         dt = datetime.strptime(date_str.strip(), '%Y-%m-%d')
         # Format as "January 1, 2025"
-        return dt.strftime('%B %d, %Y')
+        return dt.strftime('%B %d, %Y').upper()
     except (ValueError, AttributeError):
         # If parsing fails, return as-is
         return str(date_str) if date_str else ''
@@ -151,12 +151,16 @@ def build_template_context(record: Dict[str, Any], form_type: str, current_user:
             # Normalize None to empty string
             context[tpl_key] = '' if value is None else value
 
+        if 'place_of_birth' in context:
+            if context['place_of_birth'] == 'LIVINGHOPE HOSPITAL, INC.':
+                context['place_of_birth'] = 'LHH, Maasin City, Southern Leyte'
+
     # Add default template keys
     for key in DEFAULT_TEMPLATE_FIELDS:
         # do not override if already provided
         if key not in context:
             if key == 'verified_by' and current_user:
-                context[key] = current_user
+                context[key] = current_user.upper()
             elif key in ['certificate_date', 'date_paid'] and today_date:
                 context[key] = _format_date_to_long(today_date)
             else:

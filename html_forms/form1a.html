@@ -250,7 +250,6 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        margin-top: -10px;
       }
 
       .office-order input {
@@ -311,9 +310,9 @@
       }
 
       .docstamp {
-        border: 4px ridge #000;
-        width: 200px;
-        height: 80px;
+        border: 2px solid #000;
+        width: 50mm;
+        height: 15mm;
         font-family: Arial, sans-serif;
         text-align: center;
         background: white;
@@ -321,7 +320,7 @@
       }
 
       .docstamp p {
-        margin: 10px 0;
+        margin: 5px 0;
         font-weight: bold;
         font-size: 12px;
         font-family: 'Times New Roman', Times, serif;
@@ -351,10 +350,15 @@
 
       .inputs input {
         width: 100%;
-        margin-bottom: 5px;
+        margin-bottom: 1px;
         border: none;
         border-bottom: 1px solid #000;
-        font-size: 8px;
+        font-size: 6px;
+        text-align: center;
+      }
+
+      .inputs input::placeholder {
+        font-size: 6px;
       }
 
       /* Toggle button styles */
@@ -640,22 +644,22 @@
           <strong>Email Address:</strong> ccromaasincity@gmail.com |
           <strong>Contact No.:</strong> +63 975 297 5585
         </div>
-    <!-- Docstamp Component (inside certificate) -->
-    <div class="docstamp-container" id="docstampContainer">
-        <div class="docstamp">
-            <p>Documentary Stamp Tax Paid</p>
-            <div class="inputs">
-                <div>
-                    <input type="text" id="sr-number" placeholder="Enter SR Number">
-                    <label for="sr-number">(GOR SERIAL NUMBER)</label>
-                </div>
-                <div>
-                    <input type="text" id="payment-date" placeholder="Enter Date">
-                    <label for="payment-date">(DATE OF PAYMENT)</label>
+        <!-- Docstamp Component (inside certificate) -->
+        <div class="docstamp-container" id="docstampContainer">
+            <div class="docstamp">
+                <p>Documentary Stamp Tax Paid</p>
+                <div class="inputs">
+                    <div>
+                        <input type="text" id="sr-number" placeholder="Enter SR Number">
+                        <label for="sr-number">(GOR SERIAL NUMBER)</label>
+                    </div>
+                    <div>
+                        <input type="text" id="payment-date" placeholder="Enter Date">
+                        <label for="payment-date">(DATE OF PAYMENT)</label>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
       </div>
     </div>
 
@@ -731,6 +735,11 @@
       let offsetX, offsetY;
 
       docstampContainer.addEventListener('mousedown', function(e) {
+        // Don't drag if clicking on an input field
+        if (e.target.tagName === 'INPUT') {
+          return;
+        }
+
         isDragging = true;
         // Calculate offset relative to the docstamp element itself
         const rect = docstampContainer.getBoundingClientRect();

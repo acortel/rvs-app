@@ -34,6 +34,7 @@
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         box-sizing: border-box;
         overflow: hidden;
+        position: relative; /* Make this the positioning context for docstamp */
       }
 
       .header {
@@ -153,7 +154,7 @@
       .signature-section {
         display: flex;
         justify-content: space-between;
-        margin-top: 8dvh;
+        margin-top: 25mm;
         margin-bottom: 30px;
         height: 200px;
       }
@@ -195,7 +196,6 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        /* border: 1px solid black; */
         margin-top: -10px;
       }
 
@@ -275,6 +275,84 @@
         font-size: 10px;
       }
 
+      /* Docstamp-specific styles */
+      .docstamp-container {
+        position: absolute;
+        z-index: 1000;
+        display: none;
+        cursor: move;
+      }
+
+      .docstamp {
+        border: 2px solid #000;
+        width: 50mm;
+        height: 15mm;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background: white;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .docstamp p {
+        margin: 5px 0;
+        font-weight: bold;
+        font-size: 12px;
+        font-family: 'Times New Roman', Times, serif;
+      }
+
+      .inputs div label {
+        text-align: center;
+        font-weight: bold;
+        margin: 0;
+        font-size: 6px;
+        font-style: italic;
+      }
+
+      .inputs {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .inputs div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 0 10px;
+      }
+
+      .inputs input {
+        width: 100%;
+        margin-bottom: 1px;
+        border: none;
+        border-bottom: 1px solid #000;
+        font-size: 6px;
+        text-align: center;
+      }
+
+      .inputs input::placeholder {
+        font-size: 6px;
+      }
+
+      /* Toggle button styles */
+      .toggle-docstamp {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        z-index: 1001;
+      }
+
+      .toggle-docstamp:hover {
+        background: #0056b3;
+      }
+
       /* Ensure printing uses A4 size */
       @page {
         size: A4 portrait;
@@ -342,6 +420,13 @@
 
         /* Remove any on-screen-only decorations */
         .certificate { box-shadow: none; }
+
+        .toggle-docstamp { display: none; }
+
+        .docstamp-container {
+          position: absolute;
+          z-index: 10;
+        }
       }
     </style>
   </head>
@@ -435,8 +520,27 @@
           <strong>Email Address:</strong> ccromaasincity@gmail.com |
           <strong>Contact No.:</strong> +63 975 297 5585
         </div>
+        <!-- Docstamp Component (inside certificate) -->
+        <div class="docstamp-container" id="docstampContainer">
+            <div class="docstamp">
+                <p>Documentary Stamp Tax Paid</p>
+                <div class="inputs">
+                    <div>
+                        <input type="text" id="sr-number" placeholder="Enter SR Number">
+                        <label for="sr-number">(GOR SERIAL NUMBER)</label>
+                    </div>
+                    <div>
+                        <input type="text" id="payment-date" placeholder="Enter Date">
+                        <label for="payment-date">(DATE OF PAYMENT)</label>
+                    </div>
+                </div>
+            </div>
+        </div>
       </div>
     </div>
+
+    <!-- Toggle Button -->
+    <button class="toggle-docstamp" id="toggleDocstamp">Toggle Docstamp</button>
 
     <script>
       const MIN_FONT_SIZE = 8; // Minimum font size in px
@@ -486,6 +590,74 @@
           // Adjust on page load in case there's pre-filled content
           adjustFontSize(element);
         });
+      });
+
+      // Toggle functionality
+      const toggleButton = document.getElementById('toggleDocstamp');
+      const docstampContainer = document.getElementById('docstampContainer');
+      const certificate = document.querySelector('.certificate');
+
+      let isInitialized = false;
+
+      toggleButton.addEventListener('click', function() {
+        if (docstampContainer.style.display === 'none' || docstampContainer.style.display === '') {
+          docstampContainer.style.display = 'block';
+          
+          if (!isInitialized) {
+            // Position relative to certificate, not viewport
+            docstampContainer.style.top = '20px';
+            docstampContainer.style.right = '20px';
+            isInitialized = true;
+          }
+        } else {
+          docstampContainer.style.display = 'none';
+        }
+      });
+
+      // Drag functionality
+      let isDragging = false;
+      let offsetX, offsetY;
+
+      docstampContainer.addEventListener('mousedown', function(e) {
+        // Don't drag if clicking on an input field
+        if (e.target.tagName === 'INPUT') {
+          return;
+        }
+
+        isDragging = true;
+        // Calculate offset relative to the docstamp element itself
+        const rect = docstampContainer.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        docstampContainer.style.cursor = 'grabbing';
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', function(e) {
+        if (isDragging) {
+          // Get certificate's position
+          const certRect = certificate.getBoundingClientRect();
+          
+          // Calculate new position relative to certificate
+          let newLeft = e.clientX - certRect.left - offsetX;
+          let newTop = e.clientY - certRect.top - offsetY;
+          
+          // Keep docstamp within certificate bounds
+          const maxLeft = certificate.offsetWidth - docstampContainer.offsetWidth;
+          const maxTop = certificate.offsetHeight - docstampContainer.offsetHeight;
+          
+          newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+          newTop = Math.max(0, Math.min(newTop, maxTop));
+          
+          docstampContainer.style.right = 'auto';
+          docstampContainer.style.left = newLeft + 'px';
+          docstampContainer.style.top = newTop + 'px';
+        }
+      });
+
+      document.addEventListener('mouseup', function() {
+        isDragging = false;
+        docstampContainer.style.cursor = 'move';
       });
     </script>
   </body>
