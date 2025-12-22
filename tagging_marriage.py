@@ -324,10 +324,11 @@ class MarriageTaggingWindow(QWidget):
         self.place_of_marriage_combo = QComboBox()
         self.place_of_marriage_combo.setEditable(True)
         self.place_of_marriage_combo.addItems([
-            "NATIONAL SHRINE AND PARISH OF OUR LADY OF THE ASSUMPTION",
-            "ASSUMPTION IN THE HILLS PARISH",
-            "STO. NIÑO DE IBARRA PARISH",
-            "MUNICIPAL TRIAL COURT IN CITIES",
+            "NATIONAL SHRINE AND PARISH OF OUR LADY OF THE ASSUMPTION, MAASIN CITY, SO. LEYTE",
+            "ASSUMPTION IN THE HILLS PARISH, ASUNCION, MAASIN CITY, SO. LEYTE",
+            "STO. NIÑO DE IBARRA PARISH, IBARRA, ASUNCION, MAASIN CITY, SO. LEYTE",
+            "MUNICIPAL TRIAL COURT IN CITIES, MAASIN CITY, SO. LEYTE",
+            "OFFICE OF THE CITY MAYOR, MAASIN CITY, SO. LEYTE"
         ])
         self.place_of_marriage_combo.setFixedWidth(450)
         self.place_of_marriage_combo.setStyleSheet(combo_box_style)

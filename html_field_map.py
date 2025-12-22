@@ -153,7 +153,21 @@ def build_template_context(record: Dict[str, Any], form_type: str, current_user:
 
         if 'place_of_birth' in context:
             if context['place_of_birth'] == 'LIVINGHOPE HOSPITAL, INC.':
-                context['place_of_birth'] = 'LHH, Maasin City, Southern Leyte'
+                context['place_of_birth'] = 'LHH INC., ISAGANI, MAASIN CITY, SO. LEYTE'
+            if context['place_of_birth'] == 'SALVACION OPPUS YÑIGUEZ MEMORIAL PROVINCIAL HOSPITAL':
+                context['place_of_birth'] = 'SOYMPH, MAASIN CITY, SOUTHERN LEYTE'
+            if context['place_of_birth'] == 'CM MATERNITY CLINIC':
+                context['place_of_birth'] = 'CM MATERNITY CLINIC, MAASIN CITY, SOUTHERN LEYTE'
+            if context['place_of_birth'] == 'MAASIN MEDCITY HOSPITAL':
+                context['place_of_birth'] = 'MMCH, MAASIN CITY, SOUTHERN LEYTE'
+        
+        if 'place_of_death' in context:
+            if context['place_of_death'] == 'LIVINGHOPE HOSPITAL, INC.':
+                context['place_of_death'] = 'LHH ISAGANI, MAASIN CITY, SO. LEYTE'
+            if context['place_of_death'] == 'SALVACION OPPUS YÑIGUEZ MEMORIAL PROVINCIAL HOSPITAL':
+                context['place_of_death'] = 'SOYMPH, DONGON, MAASIN CITY, SO. LEYTE'
+            if context['place_of_death'] == 'MAASIN MEDCITY HOSPITAL':
+                context['place_of_death'] = 'MMCH, MAASIN CITY, SO. LEYTE'
 
     # Add default template keys
     for key in DEFAULT_TEMPLATE_FIELDS:
