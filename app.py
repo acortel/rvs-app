@@ -4,6 +4,9 @@ import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import subprocess
 
+import matplotlib
+matplotlib.use('Qt5Agg')
+
 # IMPORT PYSIDE6 MODULES
 from PySide6.QtWidgets import *
 from PySide6.QtGui import *
