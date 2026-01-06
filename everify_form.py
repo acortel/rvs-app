@@ -5,6 +5,7 @@ from PySide6.QtWidgets import *
 from PySide6.QtGui import *
 from PySide6.QtCore import *
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QSslConfiguration, QSslSocket, QNetworkReply
+from PySide6.QtPrintSupport import QPrinter, QPrintDialog
 
 from qr_scanner_window import QRScannerWindow
 from audit_logger import AuditLogger
@@ -238,7 +239,7 @@ class eVerifyForm(QWidget):
             print(f"Searching with: first_name={first_name}, middle_name={middle_name}, last_name={last_name}, suffix={suffix}, birth_date={birth_date}")
             
             cursor.execute("""
-                SELECT first_name, middle_name, last_name, suffix, gender, face_key, marital_status
+                SELECT reference, first_name, middle_name, last_name, suffix, gender, face_key, marital_status
                 FROM verifications
                 WHERE UPPER(COALESCE(first_name, '')) = %s
                 AND (
@@ -258,7 +259,7 @@ class eVerifyForm(QWidget):
             print(f"Query result: {row}")
 
             if row:
-                f_name, m_name, l_name, suff, gender, face_url, marital_status = row
+                id_no, f_name, m_name, l_name, suff, gender, face_url, marital_status = row
                 name_parts = [f_name]
                 if gender == 'Female' and marital_status == "Married":
                     name_parts.append(m_name)
@@ -267,6 +268,14 @@ class eVerifyForm(QWidget):
                     if gender != 'Female' and suff:  # Only add suffix for males
                         name_parts.append(suff)
                 full_name = " ".join(filter(None, name_parts))
+
+                # Create a data dictionary for the printer
+                person_data = {
+                    "reference": id_no, # Or pull the actual ID/Reference if available
+                    "full_name": full_name,
+                    "gender": gender,
+                    "birth_date": birth_date 
+                }
                 
                 if face_url:
                     # QMessageBox.information(self, "Verified Already!", "Client is verified already. Proceed to Records Check.")
@@ -274,10 +283,16 @@ class eVerifyForm(QWidget):
                     box.setIcon(QMessageBox.Information)
                     box.setWindowTitle("Already Verified")
                     box.setText("This client has already been verified. Showing Face Key.")
-                    box.setStandardButtons(QMessageBox.Ok)
+
+                    # Add Print and OK buttons
+                    print_btn = box.addButton("Print Form", QMessageBox.ActionRole)
+                    ok_btn = box.addButton(QMessageBox.Ok)
 
                     box.setStyleSheet(message_box_style)
                     box.exec()
+
+                    if box.clickedButton() == print_btn:
+                        self.print_verification_form(person_data)
 
                     self.download_and_save_face(face_url, full_name)
                     AuditLogger.log_action(
@@ -354,7 +369,9 @@ class eVerifyForm(QWidget):
             if qr_data.strip().startswith("{"):
                 try:
                     qr_json = json.loads(qr_data)
-                    reference_code = qr_json.get("reference_code")
+                    # Fix: Look for the PCN inside the 'subject' object
+                    subject = qr_json.get("subject", {})
+                    reference_code = subject.get("PCN") or qr_json.get("reference_code")
                     if not reference_code:
                         QMessageBox.warning(self, "Invalid QR", "QR code is missing reference code")
                         return
@@ -372,7 +389,7 @@ class eVerifyForm(QWidget):
             
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT first_name, middle_name, last_name, suffix, gender, face_key, marital_status
+                SELECT reference, first_name, middle_name, last_name, suffix, gender, face_key, marital_status, birth_date
                 FROM verifications
                 WHERE COALESCE(reference, '') = COALESCE(%s, '')
             """, (reference_code,))
@@ -382,7 +399,7 @@ class eVerifyForm(QWidget):
             print(f"Query result: {row}")
 
             if row:
-                f_name, m_name, l_name, suff, gender, face_url, marital_status = row
+                id_no, f_name, m_name, l_name, suff, gender, face_url, marital_status, birth_date = row
                 name_parts = [f_name]
                 if gender == 'Female' and marital_status == "Married":
                     name_parts.append(m_name)
@@ -391,6 +408,14 @@ class eVerifyForm(QWidget):
                     if gender != 'Female' and suff:  # Only add suffix for males
                         name_parts.append(suff)
                 full_name = " ".join(filter(None, name_parts))
+
+                # Create a data dictionary for the printer
+                person_data = {
+                    "reference": id_no, # Or pull the actual ID/Reference if available
+                    "full_name": full_name,
+                    "gender": gender,
+                    "birth_date": birth_date 
+                }
                 
                 if face_url: 
                     # QMessageBox.information(self, "Verified Already!", "Client is verified already. Proceed to Records Check.")
@@ -398,9 +423,17 @@ class eVerifyForm(QWidget):
                     box.setIcon(QMessageBox.Information)
                     box.setWindowTitle("Already Verified")
                     box.setText("This client has already been verified. Showing Face Key.")
-                    box.setStandardButtons(QMessageBox.Ok)
+
+                    # Add Print and OK buttons
+                    print_btn = box.addButton("Print Form", QMessageBox.ActionRole)
+                    ok_btn = box.addButton(QMessageBox.Ok)
+
                     box.setStyleSheet(message_box_style)
                     box.exec()
+
+                    if box.clickedButton() == print_btn:
+                        self.print_verification_form(person_data)
+
                     self.download_and_save_face(face_url, full_name)
                     
                     AuditLogger.log_action(
@@ -639,6 +672,10 @@ class eVerifyForm(QWidget):
                 else:
                     gender = person_data.get("gender", "")
                     marital_status = person_data.get("marital_status", "")
+
+                    id_no = person_data.get("reference", "").strip()
+                    birth_date = person_data.get("birth_date", "").strip()
+
                     if gender == "Female":
                         if marital_status == "Married":
                             first_name = person_data.get("first_name", "").strip()
@@ -652,6 +689,7 @@ class eVerifyForm(QWidget):
                         first_name = person_data.get("first_name", "").strip()
                         last_name = person_data.get("last_name", "").strip()
                         suffix = person_data.get("suffix")  # Returns None if key doesn't exist
+                        
                         full_name = " ".join(filter(None, [first_name, last_name, suffix]))
                     
                     AuditLogger.log_action(
@@ -662,14 +700,30 @@ class eVerifyForm(QWidget):
                     )
                     conn.commit()
 
+                    # Create a data dictionary for the printer
+                    person_data = {
+                        "reference": id_no, # Or pull the actual ID/Reference if available
+                        "full_name": full_name,
+                        "gender": gender,
+                        "birth_date": birth_date 
+                    }
+
                     print("🙌 Extracted full_name:", full_name)
                     success_msg_box = QMessageBox(self)
                     success_msg_box.setIcon(QMessageBox.Information)
                     success_msg_box.setWindowTitle("National ID Valid")
                     success_msg_box.setText(f"{full_name} has a valid National ID.")
                     success_msg_box.setWindowFlag(Qt.WindowStaysOnTopHint)
+
+                    # Add Print and OK buttons
+                    print_btn = success_msg_box.addButton("Print Form", QMessageBox.ActionRole)
+                    ok_btn = success_msg_box.addButton(QMessageBox.Ok)
+
                     success_msg_box.setStyleSheet(message_box_style)
                     success_msg_box.exec()
+
+                    if success_msg_box.clickedButton() == print_btn:
+                        self.print_verification_form(person_data)
 
                 if full_name:
                     self.pass_full_name(full_name)
@@ -816,6 +870,58 @@ class eVerifyForm(QWidget):
         msg_box.setStyleSheet(message_box_style)
         msg_box.exec_()
     
+    def print_verification_form(self, person_data):
+        """Generates and prints the verification form."""
+        # Extract data
+        id_no = person_data.get("reference", "N/A")
+        full_name = person_data.get("full_name", "N/A")
+        gender = person_data.get("gender", "N/A")
+        birth_date = person_data.get("birth_date", "N/A")
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Create HTML Template
+        html_content = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 50px; }}
+                .header {{ text-align: center; border-bottom: 2px solid #ce305e; padding-bottom: 10px; }}
+                .status {{ color: green; font-weight: bold; font-size: 18px; text-align: center; margin: 20px 0; }}
+                .content {{ margin-top: 30px; line-height: 1.6; }}
+                .field {{ font-weight: bold; width: 150px; display: inline-block; }}
+                .footer {{ margin-top: 50px; font-size: 10px; text-align: center; color: gray; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>National ID Verification Form</h1>
+            </div>
+            
+            <div class="status">STATUS: VERIFIED</div>
+
+            <div class="content">
+                <p><span class="field">ID Number:</span> {id_no}</p>
+                <p><span class="field">Full Name:</span> {full_name}</p>
+                <p><span class="field">Gender:</span> {gender}</p>
+                <p><span class="field">Birth Date:</span> {birth_date}</p>
+            </div>
+
+            <div class="footer">
+                <p>Verified by: {self.current_user} | Date: {current_time}</p>
+                <p>This document serves as an official confirmation of identity verification.</p>
+            </div>
+        </body>
+        </html>
+        """
+
+        document = QTextDocument()
+        document.setHtml(html_content)
+
+        printer = QPrinter(QPrinter.HighResolution)
+        print_dialog = QPrintDialog(printer, self)
+
+        if print_dialog.exec() == QPrintDialog.Accepted:
+            document.print_(printer)
 
     def clear_form_inputs(self):
         self.first_name_input.clear()
