@@ -5,7 +5,7 @@ from PySide6.QtWidgets import *
 from PySide6.QtGui import *
 from PySide6.QtCore import *
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QSslConfiguration, QSslSocket, QNetworkReply
-from PySide6.QtPrintSupport import QPrinter, QPrintDialog
+from PySide6.QtPrintSupport import QPrinter, QPrintDialog, QPrintPreviewDialog
 
 from qr_scanner_window import QRScannerWindow
 from audit_logger import AuditLogger
@@ -283,18 +283,10 @@ class eVerifyForm(QWidget):
                     box.setIcon(QMessageBox.Information)
                     box.setWindowTitle("Already Verified")
                     box.setText("This client has already been verified. Showing Face Key.")
-
-                    # Add Print and OK buttons
-                    print_btn = box.addButton("Print Form", QMessageBox.ActionRole)
-                    ok_btn = box.addButton(QMessageBox.Ok)
-
                     box.setStyleSheet(message_box_style)
                     box.exec()
 
-                    if box.clickedButton() == print_btn:
-                        self.print_verification_form(person_data)
-
-                    self.download_and_save_face(face_url, full_name)
+                    self.download_and_save_face(face_url, full_name, person_data)
                     AuditLogger.log_action(
                         conn,
                         self.current_user,
@@ -423,18 +415,10 @@ class eVerifyForm(QWidget):
                     box.setIcon(QMessageBox.Information)
                     box.setWindowTitle("Already Verified")
                     box.setText("This client has already been verified. Showing Face Key.")
-
-                    # Add Print and OK buttons
-                    print_btn = box.addButton("Print Form", QMessageBox.ActionRole)
-                    ok_btn = box.addButton(QMessageBox.Ok)
-
                     box.setStyleSheet(message_box_style)
                     box.exec()
 
-                    if box.clickedButton() == print_btn:
-                        self.print_verification_form(person_data)
-
-                    self.download_and_save_face(face_url, full_name)
+                    self.download_and_save_face(face_url, full_name, person_data)
                     
                     AuditLogger.log_action(
                         conn,
@@ -716,19 +700,19 @@ class eVerifyForm(QWidget):
                     success_msg_box.setWindowFlag(Qt.WindowStaysOnTopHint)
 
                     # Add Print and OK buttons
-                    print_btn = success_msg_box.addButton("Print Form", QMessageBox.ActionRole)
+                    preview_btn = success_msg_box.addButton("Preview & Print", QMessageBox.ActionRole)
                     ok_btn = success_msg_box.addButton(QMessageBox.Ok)
 
                     success_msg_box.setStyleSheet(message_box_style)
                     success_msg_box.exec()
 
-                    if success_msg_box.clickedButton() == print_btn:
-                        self.print_verification_form(person_data)
+                    if success_msg_box.clickedButton() == preview_btn:
+                        self.preview_verification_form(person_data)
 
                 if full_name:
                     self.pass_full_name(full_name)
                     self.save_successful_verification(data)
-                    self.hide()
+                    QTimer.singleShot(0, self.hide)
             else:
                 # QMessageBox.warning(self, "Verification Failed", "Invalid response from server.")
                 box = QMessageBox(self)
@@ -820,14 +804,14 @@ class eVerifyForm(QWidget):
         except Exception as e:
             print("🚨 Error sending verification:", e)
 
-    def download_and_save_face(self, face_url, full_name):
+    def download_and_save_face(self, face_url, full_name, person_data):
         """Downloads image from URL and saves to local folder."""
         try:
             filename = os.path.basename(face_url.split('?')[0])  # Remove URL params
             local_path = os.path.join(self.images_dir, filename)
             
             if os.path.exists(local_path):
-                self.show_local_face(local_path, full_name)
+                self.show_local_face(local_path, full_name, person_data)
                 return
                 
             response = requests.get(face_url, stream=True)
@@ -837,7 +821,7 @@ class eVerifyForm(QWidget):
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
                     
-            self.show_local_face(local_path, full_name)
+            self.show_local_face(local_path, full_name, person_data)
             
         except Exception as e:
             # QMessageBox.warning(self, "Download Failed", f"Error: {str(e)}")
@@ -849,7 +833,7 @@ class eVerifyForm(QWidget):
             box.setStyleSheet(message_box_style)
             box.exec()
 
-    def show_local_face(self, image_path, full_name):
+    def show_local_face(self, image_path, full_name, person_data):
         """Displays an image from the local folder."""
         pixmap = QPixmap(image_path)
         if pixmap.isNull():
@@ -868,60 +852,116 @@ class eVerifyForm(QWidget):
         msg_box.setText(f"Verified: {full_name}")
         msg_box.setIconPixmap(pixmap.scaled(300, 300, Qt.AspectRatioMode.KeepAspectRatio))
         msg_box.setStyleSheet(message_box_style)
+
+        print_btn = msg_box.addButton("Print form", QMessageBox.ActionRole)
+        ok_btn = msg_box.addButton(QMessageBox.Ok)
+
         msg_box.exec_()
+
+        if msg_box.clickedButton() == print_btn:
+            self.preview_verification_form(person_data)
     
-    def print_verification_form(self, person_data):
-        """Generates and prints the verification form."""
-        # Extract data
-        id_no = person_data.get("reference", "N/A")
-        full_name = person_data.get("full_name", "N/A")
-        gender = person_data.get("gender", "N/A")
-        birth_date = person_data.get("birth_date", "N/A")
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    def preview_verification_form(self, person_data):
+            """Launches the Print Preview dialog."""
+            try: 
+                self.preview_data = person_data.copy() # Store temporarily for the paint signal
+                
+                printer = QPrinter(QPrinter.HighResolution)
+                # 2. Set the default paper size to A4
+                # We use QPageLayout to define size, orientation, and margins
+                page_layout = QPageLayout(
+                    QPageSize(QPageSize.A4), 
+                    QPageLayout.Landscape, 
+                    QMarginsF(0.5, 0.5, 0.5, 0.5) # Margins in inches
+                )
+                printer.setPageLayout(page_layout)
 
-        # Create HTML Template
-        html_content = f"""
-        <html>
-        <head>
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 50px; }}
-                .header {{ text-align: center; border-bottom: 2px solid #ce305e; padding-bottom: 10px; }}
-                .status {{ color: green; font-weight: bold; font-size: 18px; text-align: center; margin: 20px 0; }}
-                .content {{ margin-top: 30px; line-height: 1.6; }}
-                .field {{ font-weight: bold; width: 150px; display: inline-block; }}
-                .footer {{ margin-top: 50px; font-size: 10px; text-align: center; color: gray; }}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>National ID Verification Form</h1>
-            </div>
+                self.preview = QPrintPreviewDialog(printer, self)
+                self.preview.setWindowTitle("Print Preview - Verification Form")
+
+                # FIX: Force the dialog to use the 'Fusion' style so icons are visible
+                self.preview.setStyle(QStyleFactory.create("Fusion"))
+
+                # FIX: Clear any inherited stylesheet that might be making things white
+                self.preview.setStyleSheet("QWidget { background-color: palette(window); color: palette(window-text); }")
+                
+                # This signal is triggered when the dialog is ready to render the page
+                self.preview.paintRequested.connect(self.handle_print_preview)
+                
+                self.preview.exec()
             
-            <div class="status">STATUS: VERIFIED</div>
+            except Exception as e:
+                print("🚨 Error in print preview:", e)
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Warning)
+                box.setWindowTitle("Print Error")
+                box.setText(f"Failed to generate print preview: {str(e)}")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
+            finally:
+                self.preview_data = {}  # Clear after use
 
-            <div class="content">
-                <p><span class="field">ID Number:</span> {id_no}</p>
-                <p><span class="field">Full Name:</span> {full_name}</p>
-                <p><span class="field">Gender:</span> {gender}</p>
-                <p><span class="field">Birth Date:</span> {birth_date}</p>
-            </div>
+    def handle_print_preview(self, printer):
+        """Renders the HTML content onto the printer object."""
+        # 1. Extract and format data
+        try:
+            if not hasattr(self, 'preview_data') or not self.preview_data:
+                print("No preview data available.")
+                return
+            
+            id_no = self.preview_data.get("reference", "N/A")
+            full_name = self.preview_data.get("full_name", "N/A")
+            gender = self.preview_data.get("gender", "N/A")
+            birth_date = self.preview_data.get("birth_date", "N/A")
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            <div class="footer">
-                <p>Verified by: {self.current_user} | Date: {current_time}</p>
-                <p>This document serves as an official confirmation of identity verification.</p>
-            </div>
-        </body>
-        </html>
-        """
+            # 2. Create the HTML (same as before)
+            html_content = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 40pt; }}
+                    .header {{ text-align: center; border-bottom: 2pt solid #ce305e; padding-bottom: 10pt; margin-bottom: 20pt; }}
+                    .header h1 {{ font-size: 28pt; margin: 0; color: #212121; }}
+                    .status {{ color: green; font-weight: bold; font-size: 22pt; text-align: center; margin: 30pt 0; }}
+                    .content {{ margin-top: 40pt; line-height: 2.0; font-size: 14pt; }}
+                    .field {{ font-weight: bold; width: 150pt; display: inline-block; }}
+                    .footer {{ margin-top: 60pt; font-size: 10pt; text-align: center; color: gray; border-top: 1pt solid #d1d0d0; padding-top: 10pt; }}
+                </style>
+            </head>
+            <body>
+                <div class="header"><h1>National ID Verification Form</h1></div>
+                <div class="status">STATUS: VERIFIED</div>
+                <div class="content">
+                    <p><span class="field">ID Number:</span> {id_no}</p>
+                    <p><span class="field">Full Name:</span> {full_name}</p>
+                    <p><span class="field">Gender:</span> {gender}</p>
+                    <p><span class="field">Birth Date:</span> {birth_date}</p>
+                </div>
+                <div class="footer">
+                    <p>Verified by: {self.current_user} | Date: {current_time}</p>
+                </div>
+            </body>
+            </html>
+            """
 
-        document = QTextDocument()
-        document.setHtml(html_content)
-
-        printer = QPrinter(QPrinter.HighResolution)
-        print_dialog = QPrintDialog(printer, self)
-
-        if print_dialog.exec() == QPrintDialog.Accepted:
+            # 3. Print the document to the preview printer
+            document = QTextDocument()
+            document.setHtml(html_content)
             document.print_(printer)
+
+            print("Print preview rendered successfully.")
+
+        except Exception as e:
+            print("🚨 Error rendering print preview:", e)
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Warning)
+            box.setWindowTitle("Print Error")
+            box.setText(f"Failed to render print preview: {str(e)}")
+            box.setStandardButtons(QMessageBox.Ok)
+            box.setStyleSheet(message_box_style)
+            box.exec()
 
     def clear_form_inputs(self):
         self.first_name_input.clear()
@@ -932,8 +972,8 @@ class eVerifyForm(QWidget):
 
 
     def closeEvent(self, event):
-        conn = self.create_connection()
         try:
+            conn = self.create_connection()
             AuditLogger.log_action(
                 conn,
                 self.current_user,
@@ -941,14 +981,15 @@ class eVerifyForm(QWidget):
                 {"window": "eVerifyForm"}
             )
             conn.commit()
-            
+        except Exception as e:
+            print("🚨 Error during close logging:", e)
+        finally:
             self.clear_form_inputs()
             if self.qr_scanner_window is not None:
-                self.qr_scanner_window.hide()
-        finally:
+                self.qr_scanner_window.close()
+                self.qr_scanner_window = None
             self.closeConnection()
-            event.ignore()
-            self.hide()
-            
+            event.accept()
+            super().closeEvent(event)
 
 

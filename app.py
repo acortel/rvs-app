@@ -166,7 +166,7 @@ class Login(QDialog, Ui_Login_Dialog):
                     "LOGIN",
                     {"client": "DesktopApp"}
                 )
-                mainwindow.showMaximized()
+                mainwindow.show()
                 self.hide()
             else:
                 AuditLogger.log_action(
