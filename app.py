@@ -1440,7 +1440,7 @@ class MainWindow(QMainWindow):
                 statistics.setWindowFlag(Qt.Window)
                 self.windows['statistics'] = statistics
                 
-            statistics.showMaximized()
+            statistics.show()
             statistics.raise_()
             statistics.activateWindow()
             
