@@ -53,15 +53,12 @@ class StatisticsWindow(QWidget):
         self.connection = None
         self.setWindowTitle("Statistics Tool")
         self.setGeometry(200, 200, 600, 400)
-
         self.setWindowIcon(QIcon("icons/application.png"))
-
         self.setStyleSheet("""
             QWidget {
                 background-color: #FFFFFF;
             }
         """)
-
         self.init_ui()
 
     def create_connection(self):
@@ -80,8 +77,6 @@ class StatisticsWindow(QWidget):
 
     def init_ui(self):
         main_layout = QHBoxLayout()
-
-        # Left-side layout for filters
         left_layout = QVBoxLayout()
         left_layout.setAlignment(Qt.AlignTop)
 
@@ -149,7 +144,6 @@ class StatisticsWindow(QWidget):
         # Date range label
         self.date_label = QLabel("Date of Birth Range:", self)
         left_layout.addWidget(self.date_label)
-
         self.start_date_input = QDateEdit(self)
         self.start_date_input.setCalendarPopup(True)
         self.start_date_input.setDate(QDate.currentDate().addMonths(-1))
@@ -172,7 +166,6 @@ class StatisticsWindow(QWidget):
             }
         """)
         left_layout.addWidget(self.reg_date_label)
-
         self.reg_start_date_input = QDateEdit(self)
         self.reg_start_date_input.setCalendarPopup(True)
         self.reg_start_date_input.setDate(QDate())
@@ -189,7 +182,6 @@ class StatisticsWindow(QWidget):
 
         # Filter value input container
         filter_container = QVBoxLayout()
-        
         filter_label = QLabel("Filter by Value (Optional):", self)
         filter_label.setStyleSheet("""
             QLabel {
@@ -200,9 +192,9 @@ class StatisticsWindow(QWidget):
         """)
         filter_container.addWidget(filter_label)
 
-        # Text input for non-age fields
+        # Filter value input
         self.filter_value_input = QLineEdit(self)
-        self.filter_value_input.setPlaceholderText("Enter value to filter by (e.g., 'Ariel')")
+        self.filter_value_input.setPlaceholderText("Filter by Value (Optional): ")
         self.filter_value_input.setStyleSheet("""
             QLineEdit {
                 background-color: #FFFFFF;
@@ -335,10 +327,10 @@ class StatisticsWindow(QWidget):
         
         if selected_key == "Late Registration":
             # Hide both text input and age range inputs
-            self.filter_value_input.setEnabled(False)
+            # self.filter_value_input.setEnabled(False)
             self.filter_value_input.hide()
-            self.filter_value_input.clear()
-            self.filter_value_input.setPlaceholderText("Not applicable - counts only late registrations")
+            # self.filter_value_input.clear()
+            # self.filter_value_input.setPlaceholderText("Not applicable - counts only late registrations")
             self.age_range_label.hide()
             self.min_age_input.hide()
             self.max_age_input.hide()
@@ -358,9 +350,9 @@ class StatisticsWindow(QWidget):
             self.reg_end_date_input.hide()
         else:
             # Show text input, hide age range inputs
-            self.filter_value_input.setEnabled(True)
+            # self.filter_value_input.setEnabled(True)
             self.filter_value_input.show()
-            self.filter_value_input.setPlaceholderText("Enter value to filter by (e.g., 'Ariel')")
+            # self.filter_value_input.setPlaceholderText("Enter value to filter by (e.g., 'Ariel')")
             self.age_range_label.hide()
             self.min_age_input.hide()
             self.max_age_input.hide()
@@ -398,66 +390,53 @@ class StatisticsWindow(QWidget):
         return table_map.get(record_type, ("birth_index", "date_of_birth"))
 
     def _build_query_with_filter(self, table, date_field, column, selected_key, record_type, start_date, end_date, filter_value=None, min_age=None, max_age=None, reg_start_date=None, reg_end_date=None):
-        """Build SQL query with optional filter value and registration date range. Returns (query_string, params_tuple)."""
-        query_params = [start_date, end_date]
-        base_query = f'SELECT COUNT(*) FROM "{table}" WHERE "{date_field}" BETWEEN %s AND %s'
+        """Build SQL query with scoped filters."""
         
-        # Add registration date filter if provided
-        if reg_start_date and reg_end_date:
-            base_query += ' AND "date_of_reg" BETWEEN %s AND %s'
-            query_params.extend([reg_start_date, reg_end_date])
-        
-        # Handle Late Registration - automatically count only true values
-        # Applies to all record types: Live Birth, Death, and Marriage
+        # CASE 1: Late Registration (Focuses primarily on the Registration Date)
         if selected_key == "Late Registration":
-            # Use TRUE directly for boolean column (not %s with 1)
-            # This automatically filters for late_registration = TRUE regardless of filter_value input
-            query_condition = f' AND "{column}" = TRUE'
-            query = base_query + query_condition
-            return query, tuple(query_params)
+            # Check if we are filtering by a specific Registration Period
+            if reg_start_date and reg_end_date:
+                query_params = [reg_start_date, reg_end_date]
+                base_query = f'SELECT COUNT(*) FROM "{table}" WHERE DATE("date_of_reg") BETWEEN %s::date AND %s::date'
+            else:
+                # Fallback to the primary date picker if registration dates aren't set
+                query_params = [start_date, end_date]
+                base_query = f'SELECT COUNT(*) FROM "{table}" WHERE DATE("{date_field}") BETWEEN %s::date AND %s::date'
+            
+            base_query += f' AND "{column}" = TRUE'
+            return base_query, tuple(query_params)
+        
+        # CASE 2: Standard Key Filtering (Age, Name, etc.)
+        query_params = [start_date, end_date]
+        base_query = f'SELECT COUNT(*) FROM "{table}" WHERE DATE("{date_field}") BETWEEN %s::date AND %s::date'
         
         # Handle age range fields
         selected_key_lower = selected_key.lower()
         if selected_key_lower in ["age", "husband age", "wife age"]:
             if min_age is not None and max_age is not None:
-                # Use age range (min_age to max_age)
-                query_condition = f' AND "{column}" BETWEEN %s AND %s'
+                base_query += f' AND "{column}" BETWEEN %s AND %s'
                 query_params.extend([min_age, max_age])
-                query = base_query + query_condition
-                return query, tuple(query_params)
-            # If no age range provided, don't filter by age
             return base_query, tuple(query_params)
         
-        # Add filter by column value if provided
+        # Handle Text/Name Filters
         if filter_value:
-            # Handle strict/exact matching for name fields (split by whitespace and match any part)
-            # Live Birth: Name, Name of Mother, Name of Father
-            # Death: Name
-            # Marriage: Husband Name, Wife Name
-            if (record_type == "Live Birth" and selected_key in ["Name", "Name of Mother", "Name of Father"]) or \
-               (record_type == "Death" and selected_key == "Name") or \
-               (record_type == "Marriage" and selected_key in ["Husband Name", "Wife Name"]):
-                # Split the name column by whitespace and check if filter_value matches any part exactly (case-insensitive)
-                query_condition = f' AND LOWER(%s) = ANY(string_to_array(LOWER(TRIM("{column}")), \' \'))'
-                query_params.append(filter_value.lower())  # Use lowercase for comparison
-            # Handle exact matching for Sex and Type of Birth fields
-            # Sex: applies to all record types (Live Birth, Death, Marriage)
-            # Type of Birth: applies to Live Birth only
-            elif selected_key == "Sex" or selected_key == "Type of Birth":
-                # Use case-insensitive exact match (ILIKE without wildcards)
-                # This ensures "Male" only matches "Male", not "Female"
-                query_condition = f' AND "{column}" ILIKE %s'
-                query_params.append(filter_value)  # No wildcards for exact match
-            else:
-                # For other text fields, use case-insensitive partial match (ILIKE)
-                query_condition = f' AND "{column}" ILIKE %s'
-                query_params.append(f'%{filter_value}%')
+            name_fields = {
+                "Live Birth": ["Name", "Name of Mother", "Name of Father"],
+                "Death": ["Name"],
+                "Marriage": ["Husband Name", "Wife Name"]
+            }
             
-            query = base_query + query_condition
-        else:
-            query = base_query
-
-        return query, tuple(query_params)
+            if record_type in name_fields and selected_key in name_fields[record_type]:
+                base_query += f' AND "{column}" ~* %s'
+                query_params.append(rf'\y{filter_value}\y') 
+            elif selected_key in ["Sex", "Type of Birth"]:
+                base_query += f' AND "{column}" ILIKE %s'
+                query_params.append(filter_value)
+            else:
+                base_query += f' AND "{column}" ILIKE %s'
+                query_params.append(f'%{filter_value}%')
+                
+        return base_query, tuple(query_params)
 
     def generate_statistics(self):
         record_type = self.record_type_dropdown.currentText()
@@ -467,19 +446,18 @@ class StatisticsWindow(QWidget):
         filter_value = self.filter_value_input.text().strip() if self.filter_value_input.isVisible() else None
         
         # Get age range values if age field is selected
-        selected_key_lower = selected_key.lower()
-        min_age = None
-        max_age = None
-        if selected_key_lower in ["age", "husband age", "wife age"]:
-            min_age = self.min_age_input.value()
-            max_age = self.max_age_input.value()
+        min_age = self.min_age_input.value() if "age" in selected_key.lower() else None
+        max_age = self.max_age_input.value() if "age" in selected_key.lower() else None
         
-        # Get registration date range if provided
+        # Check if registration dates are actually set (not just default min values)
         reg_start_date = None
         reg_end_date = None
-        if self.reg_start_date_input.date().isValid() and self.reg_end_date_input.date().isValid():
-            reg_start_date = self.reg_start_date_input.date().toString("yyyy-MM-dd")
-            reg_end_date = self.reg_end_date_input.date().toString("yyyy-MM-dd")
+        if selected_key == "Late Registration":
+            # If the date is not the minimum possible date, consider it "set"
+            if self.reg_start_date_input.date() != self.reg_start_date_input.minimumDate():
+                reg_start_date = self.reg_start_date_input.date().toString("yyyy-MM-dd")
+            if self.reg_end_date_input.date() != self.reg_end_date_input.minimumDate():
+                reg_end_date = self.reg_end_date_input.date().toString("yyyy-MM-dd")
 
         conn = self.create_connection()
         try:
@@ -552,7 +530,7 @@ class StatisticsWindow(QWidget):
 
                 if total_count == 0:
                     # Build filter info message
-                    if selected_key_lower in ["age", "husband age", "wife age"] and min_age is not None and max_age is not None:
+                    if selected_key in ["age", "husband age", "wife age"] and min_age is not None and max_age is not None:
                         filter_info = f" in age range {min_age}-{max_age}"
                     elif filter_value:
                         filter_info = f" matching '{filter_value}'"
