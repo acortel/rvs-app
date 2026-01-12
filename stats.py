@@ -9,6 +9,7 @@ from PySide6.QtGui import QIcon
 from stylesheets import button_style, date_picker_style
 from audit_logger import AuditLogger
 from db_config import POSTGRES_CONFIG
+from stylesheets import *
 
 
 
@@ -157,7 +158,7 @@ class StatisticsWindow(QWidget):
         left_layout.addWidget(self.end_date_input)
 
         # Registration date range (optional)
-        self.reg_date_label = QLabel("Registration Date Range (Optional):", self)
+        self.reg_date_label = QLabel("Registration Date Range (For Late Registrations):", self)
         self.reg_date_label.setStyleSheet("""
             QLabel {
                 font-size: 12px;
@@ -334,6 +335,8 @@ class StatisticsWindow(QWidget):
             self.age_range_label.hide()
             self.min_age_input.hide()
             self.max_age_input.hide()
+            self.start_date_input.hide()
+            self.end_date_input.hide()
             # Show registration date range
             self.reg_date_label.show()
             self.reg_start_date_input.show()
@@ -344,6 +347,8 @@ class StatisticsWindow(QWidget):
             self.age_range_label.show()
             self.min_age_input.show()
             self.max_age_input.show()
+            self.start_date_input.show()
+            self.end_date_input.show()
             # Hide registration date range
             self.reg_date_label.hide()
             self.reg_start_date_input.hide()
@@ -352,6 +357,8 @@ class StatisticsWindow(QWidget):
             # Show text input, hide age range inputs
             # self.filter_value_input.setEnabled(True)
             self.filter_value_input.show()
+            self.start_date_input.show()
+            self.end_date_input.show()
             # self.filter_value_input.setPlaceholderText("Enter value to filter by (e.g., 'Ariel')")
             self.age_range_label.hide()
             self.min_age_input.hide()
@@ -429,11 +436,11 @@ class StatisticsWindow(QWidget):
             if record_type in name_fields and selected_key in name_fields[record_type]:
                 base_query += f' AND "{column}" ~* %s'
                 query_params.append(rf'\y{filter_value}\y') 
-            elif selected_key in ["Sex", "Type of Birth"]:
+            elif selected_key in ["Sex", "Type of Birth", "Civil Status"]:
                 base_query += f' AND "{column}" ILIKE %s'
                 query_params.append(filter_value)
             else:
-                base_query += f' AND "{column}" ILIKE %s'
+                base_query += f' AND "{column}" ILIKE %s AND "{column}" IS NOT NULL'
                 query_params.append(f'%{filter_value}%')
                 
         return base_query, tuple(query_params)
@@ -498,19 +505,43 @@ class StatisticsWindow(QWidget):
             # Get column name - validated through KEY_COLUMN_MAP
             column = self.KEY_COLUMN_MAP.get(selected_key)
             if not column:
-                QMessageBox.warning(self, "Error", f"No column mapping for key: {selected_key}")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Warning)
+                box.setWindowTitle("Statistics Error")
+                box.setText(f"No column mapping for key: {selected_key}")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
                 return
 
             # Validate table and column names to prevent SQL injection
             # Only allow alphanumeric and underscore characters
             if not all(c.isalnum() or c == '_' for c in table):
-                QMessageBox.critical(self, "Security Error", "Invalid table name")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Critical)
+                box.setWindowTitle("Security Error")
+                box.setText("Invalid table name")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
                 return
             if not all(c.isalnum() or c == '_' for c in column):
-                QMessageBox.critical(self, "Security Error", "Invalid column name")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Critical)
+                box.setWindowTitle("Security Error")
+                box.setText("Invalid column name")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
                 return
             if not all(c.isalnum() or c == '_' for c in date_field):
-                QMessageBox.critical(self, "Security Error", "Invalid date field name")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Critical)
+                box.setWindowTitle("Security Error")
+                box.setText("Invalid date field name")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
                 return
 
             try:
@@ -521,7 +552,13 @@ class StatisticsWindow(QWidget):
                         filter_value, min_age, max_age, reg_start_date, reg_end_date
                     )
                 except ValueError as ve:
-                    QMessageBox.warning(self, "Invalid Input", str(ve))
+                    box = QMessageBox(self)
+                    box.setIcon(QMessageBox.Warning)
+                    box.setWindowTitle("Invalid Input")
+                    box.setText(str(ve))
+                    box.setStandardButtons(QMessageBox.Ok)
+                    box.setStyleSheet(message_box_style)
+                    box.exec()
                     return
 
                 cursor.execute(query, query_params)
@@ -554,7 +591,15 @@ class StatisticsWindow(QWidget):
                         }
                     )
                     conn.commit()
-                    QMessageBox.information(self, "No Data", f"No records found for '{selected_key}'{filter_info} in the selected date range.")
+                    
+                    box = QMessageBox(self)
+                    box.setIcon(QMessageBox.Information)
+                    box.setWindowTitle("No Data")
+                    box.setText(f"No records found for '{selected_key}'{filter_info} in the selected date range.")
+                    box.setStandardButtons(QMessageBox.Ok)
+                    box.setStyleSheet(message_box_style)
+                    box.exec()
+
                     self.result_display.setText("0")
                 else:
                     AuditLogger.log_action(
@@ -595,7 +640,13 @@ class StatisticsWindow(QWidget):
                     }
                 )
                 conn.commit()
-                QMessageBox.critical(self, "Database Error", f"An error occurred: {str(e)}")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Critical)
+                box.setWindowTitle("Database Error")
+                box.setText(f"An error occurred: {str(e)}")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
                 self.result_display.setText("0")
 
         finally:
@@ -638,7 +689,13 @@ class StatisticsWindow(QWidget):
                     {"reason": "no_key_selected"}
                 )
                 conn.commit()
-                QMessageBox.warning(self, "Error", "Please select a valid key!")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Warning)
+                box.setWindowTitle("Error")
+                box.setText("Please select a valid key!")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
                 return
 
             # Get table and date field
@@ -647,18 +704,42 @@ class StatisticsWindow(QWidget):
             # Get column name
             column = self.KEY_COLUMN_MAP.get(selected_key)
             if not column:
-                QMessageBox.warning(self, "Error", f"No column mapping for key: {selected_key}")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Warning)
+                box.setWindowTitle("Error")
+                box.setText(f"No column mapping for key: {selected_key}")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
                 return
 
             # Validate table and column names to prevent SQL injection
             if not all(c.isalnum() or c == '_' for c in table):
-                QMessageBox.critical(self, "Security Error", "Invalid table name")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Critical)
+                box.setWindowTitle("Security Error")
+                box.setText("Invalid table name")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
                 return
             if not all(c.isalnum() or c == '_' for c in column):
-                QMessageBox.critical(self, "Security Error", "Invalid column name")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Critical)
+                box.setWindowTitle("Security Error")
+                box.setText("Invalid column name")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
                 return
             if not all(c.isalnum() or c == '_' for c in date_field):
-                QMessageBox.critical(self, "Security Error", "Invalid date field name")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Critical)
+                box.setWindowTitle("Security Error")
+                box.setText("Invalid date field name")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
                 return
 
             try:
@@ -670,7 +751,13 @@ class StatisticsWindow(QWidget):
                         filter_value, min_age, max_age, reg_start_date, reg_end_date
                     )
                 except ValueError as ve:
-                    QMessageBox.warning(self, "Invalid Input", str(ve))
+                    box = QMessageBox(self)
+                    box.setIcon(QMessageBox.Warning)
+                    box.setWindowTitle("Invalid Input")
+                    box.setText(str(ve))
+                    box.setStandardButtons(QMessageBox.Ok)
+                    box.setStyleSheet(message_box_style)
+                    box.exec()
                     return
 
                 cursor.execute(query, query_params)
@@ -739,7 +826,14 @@ class StatisticsWindow(QWidget):
                     }
                 )
                 conn.commit()
-                QMessageBox.information(self, "Success", f"PDF report exported successfully!\nTotal Count: {total_count}")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Information)
+                box.setWindowTitle("Success")
+                box.setText(f"PDF report exported successfully!\nTotal Count: {total_count}")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
+                
 
             except Exception as e:
                 AuditLogger.log_action(
@@ -759,7 +853,13 @@ class StatisticsWindow(QWidget):
                     }
                 )
                 conn.commit()
-                QMessageBox.critical(self, "Export Error", f"Failed to export PDF: {str(e)}")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Critical)
+                box.setWindowTitle("Export Error")
+                box.setText(f"Failed to export PDF: {str(e)}")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
 
         finally:
             self.closeConnection()
