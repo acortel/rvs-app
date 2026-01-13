@@ -143,7 +143,14 @@ class StatisticsWindow(QWidget):
         left_layout.addWidget(self.key_dropdown)
 
         # Date range label
-        self.date_label = QLabel("Date of Birth Range:", self)
+        self.date_label = QLabel("Date of Event Range:", self)
+        self.date_label.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+                color: #212121;
+                margin-top: 10px;
+            }
+        """)
         left_layout.addWidget(self.date_label)
         self.start_date_input = QDateEdit(self)
         self.start_date_input.setCalendarPopup(True)
@@ -183,15 +190,15 @@ class StatisticsWindow(QWidget):
 
         # Filter value input container
         filter_container = QVBoxLayout()
-        filter_label = QLabel("Filter by Value (Optional):", self)
-        filter_label.setStyleSheet("""
+        self.filter_label = QLabel("Filter by Value (Optional):", self)
+        self.filter_label.setStyleSheet("""
             QLabel {
                 font-size: 12px;
                 color: #212121;
                 margin-top: 10px;
             }
         """)
-        filter_container.addWidget(filter_label)
+        filter_container.addWidget(self.filter_label)
 
         # Filter value input
         self.filter_value_input = QLineEdit(self)
@@ -274,6 +281,65 @@ class StatisticsWindow(QWidget):
         filter_container.addLayout(age_range_layout)
         left_layout.addLayout(filter_container)
 
+        # Resident filters (for birth and death records)
+        resident_label = QLabel("Resident Filters (Optional):", self)
+        resident_label.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+                color: #212121;
+                margin-top: 10px;
+            }
+        """)
+        left_layout.addWidget(resident_label)
+
+        # Maasin resident checkbox
+        self.maasin_resident_cb = QCheckBox("Maasin Resident", self)
+        self.maasin_resident_cb.setStyleSheet("""
+            QCheckBox {
+                font-size: 11px;
+                color: #212121;
+                margin-left: 5px;
+            }
+            QCheckBox::indicator {
+                width: 15px;
+                height: 15px;
+            }
+        """)
+        left_layout.addWidget(self.maasin_resident_cb)
+
+        # Soley te resident checkbox
+        self.soleyte_resident_cb = QCheckBox("Soleyte Resident", self)
+        self.soleyte_resident_cb.setStyleSheet("""
+            QCheckBox {
+                font-size: 11px;
+                color: #212121;
+                margin-left: 5px;
+            }
+            QCheckBox::indicator {
+                width: 15px;
+                height: 15px;
+            }
+        """)
+        left_layout.addWidget(self.soleyte_resident_cb)
+
+        # Leyte resident checkbox
+        self.leyte_resident_cb = QCheckBox("Leyte Resident", self)
+        self.leyte_resident_cb.setStyleSheet("""
+            QCheckBox {
+                font-size: 11px;
+                color: #212121;
+                margin-left: 5px;
+            }
+            QCheckBox::indicator {
+                width: 15px;
+                height: 15px;
+            }
+        """)
+        left_layout.addWidget(self.leyte_resident_cb)
+
+        # Connect record type change to show/hide resident filters
+        self.record_type_dropdown.currentIndexChanged.connect(self.update_resident_filters_visibility)
+
         generate_btn = QPushButton("Generate Statistics", self)
         generate_btn.clicked.connect(self.generate_statistics)
         generate_btn.setStyleSheet(button_style)
@@ -320,6 +386,25 @@ class StatisticsWindow(QWidget):
 
         self.update_keys_for_record_type()  # Set initial keys
         self.update_filter_input_state()  # Set initial filter input state
+        self.update_resident_filters_visibility()  # Set initial resident filters visibility
+
+    def update_resident_filters_visibility(self):
+        """Show/hide resident filters based on record type."""
+        record_type = self.record_type_dropdown.currentText()
+        # Show resident filters for birth and death records, hide for marriage
+        show_residents = record_type in ["Live Birth", "Death"]
+        
+        self.maasin_resident_cb.setVisible(show_residents)
+        self.soleyte_resident_cb.setVisible(show_residents)
+        self.leyte_resident_cb.setVisible(show_residents)
+        
+        # Also hide/show the resident label
+        # Find the resident label in the layout
+        for i in range(self.layout().itemAt(0).layout().count()):
+            item = self.layout().itemAt(0).layout().itemAt(i)
+            if item.widget() and hasattr(item.widget(), 'text') and item.widget().text() == "Resident Filters (Optional):":
+                item.widget().setVisible(show_residents)
+                break
 
     def update_filter_input_state(self):
         """Enable or disable filter input based on selected key."""
@@ -330,6 +415,7 @@ class StatisticsWindow(QWidget):
             # Hide both text input and age range inputs
             # self.filter_value_input.setEnabled(False)
             self.filter_value_input.hide()
+            self.filter_label.hide()
             # self.filter_value_input.clear()
             # self.filter_value_input.setPlaceholderText("Not applicable - counts only late registrations")
             self.age_range_label.hide()
@@ -337,6 +423,7 @@ class StatisticsWindow(QWidget):
             self.max_age_input.hide()
             self.start_date_input.hide()
             self.end_date_input.hide()
+            self.date_label.hide()
             # Show registration date range
             self.reg_date_label.show()
             self.reg_start_date_input.show()
@@ -344,11 +431,13 @@ class StatisticsWindow(QWidget):
         elif selected_key_lower in ["age", "husband age", "wife age"]:
             # Show age range inputs, hide text input
             self.filter_value_input.hide()
+            self.filter_label.hide()
             self.age_range_label.show()
             self.min_age_input.show()
             self.max_age_input.show()
             self.start_date_input.show()
             self.end_date_input.show()
+            self.date_label.show()
             # Hide registration date range
             self.reg_date_label.hide()
             self.reg_start_date_input.hide()
@@ -357,8 +446,10 @@ class StatisticsWindow(QWidget):
             # Show text input, hide age range inputs
             # self.filter_value_input.setEnabled(True)
             self.filter_value_input.show()
+            self.filter_label.show()
             self.start_date_input.show()
             self.end_date_input.show()
+            self.date_label.show()
             # self.filter_value_input.setPlaceholderText("Enter value to filter by (e.g., 'Ariel')")
             self.age_range_label.hide()
             self.min_age_input.hide()
@@ -373,7 +464,7 @@ class StatisticsWindow(QWidget):
         self.key_dropdown.clear()
         if record_type == "Live Birth":
             self.key_dropdown.addItems([
-                "Name", "Sex", "Place of Birth", "Name of Mother", "Name of Father", "Nationality of Mother", "Nationality of Father", "Attendant", "Late Registration", "Type of Birth"
+                "Name", "Sex", "Place of Birth", "Name of Mother", "Name of Father", "Nationality of Mother", "Nationality of Father", "Attendant", "Type of Birth", "Late Registration" 
             ])
             self.date_label.setText("Date of Birth Range:")
         elif record_type == "Death":
@@ -396,7 +487,7 @@ class StatisticsWindow(QWidget):
         }
         return table_map.get(record_type, ("birth_index", "date_of_birth"))
 
-    def _build_query_with_filter(self, table, date_field, column, selected_key, record_type, start_date, end_date, filter_value=None, min_age=None, max_age=None, reg_start_date=None, reg_end_date=None):
+    def _build_query_with_filter(self, table, date_field, column, selected_key, record_type, start_date, end_date, filter_value=None, min_age=None, max_age=None, reg_start_date=None, reg_end_date=None, maasin_resident=None, soleyte_resident=None, leyte_resident=None):
         """Build SQL query with scoped filters."""
         
         # CASE 1: Late Registration (Focuses primarily on the Registration Date)
@@ -442,6 +533,15 @@ class StatisticsWindow(QWidget):
             else:
                 base_query += f' AND "{column}" ILIKE %s AND "{column}" IS NOT NULL'
                 query_params.append(f'%{filter_value}%')
+        
+        # Apply resident filters (only for birth and death records)
+        if record_type in ["Live Birth", "Death"]:
+            if maasin_resident is True:
+                base_query += f' AND "maasin_resident" = TRUE'
+            if soleyte_resident is True:
+                base_query += f' AND "soleyte_resident" = TRUE'
+            if leyte_resident is True:
+                base_query += f' AND "leyte_resident" = TRUE'
                 
         return base_query, tuple(query_params)
 
@@ -455,6 +555,11 @@ class StatisticsWindow(QWidget):
         # Get age range values if age field is selected
         min_age = self.min_age_input.value() if "age" in selected_key.lower() else None
         max_age = self.max_age_input.value() if "age" in selected_key.lower() else None
+        
+        # Get resident filter values (only for birth and death records)
+        maasin_resident = self.maasin_resident_cb.isChecked() if self.maasin_resident_cb.isVisible() else None
+        soleyte_resident = self.soleyte_resident_cb.isChecked() if self.soleyte_resident_cb.isVisible() else None
+        leyte_resident = self.leyte_resident_cb.isChecked() if self.leyte_resident_cb.isVisible() else None
         
         # Check if registration dates are actually set (not just default min values)
         reg_start_date = None
@@ -492,7 +597,10 @@ class StatisticsWindow(QWidget):
                     "start_date": start_date,
                     "end_date": end_date,
                     "reg_start_date": reg_start_date,
-                    "reg_end_date": reg_end_date
+                    "reg_end_date": reg_end_date,
+                    "maasin_resident": maasin_resident,
+                    "soleyte_resident": soleyte_resident,
+                    "leyte_resident": leyte_resident
                 }
             )
             conn.commit()
@@ -549,7 +657,8 @@ class StatisticsWindow(QWidget):
                 try:
                     query, query_params = self._build_query_with_filter(
                         table, date_field, column, selected_key, record_type, start_date, end_date, 
-                        filter_value, min_age, max_age, reg_start_date, reg_end_date
+                        filter_value, min_age, max_age, reg_start_date, reg_end_date,
+                        maasin_resident, soleyte_resident, leyte_resident
                     )
                 except ValueError as ve:
                     box = QMessageBox(self)
@@ -587,7 +696,10 @@ class StatisticsWindow(QWidget):
                             "start_date": start_date,
                             "end_date": end_date,
                             "reg_start_date": reg_start_date,
-                            "reg_end_date": reg_end_date
+                            "reg_end_date": reg_end_date,
+                            "maasin_resident": maasin_resident,
+                            "soleyte_resident": soleyte_resident,
+                            "leyte_resident": leyte_resident
                         }
                     )
                     conn.commit()
@@ -667,6 +779,11 @@ class StatisticsWindow(QWidget):
         if selected_key_lower in ["age", "husband age", "wife age"]:
             min_age = self.min_age_input.value()
             max_age = self.max_age_input.value()
+        
+        # Get resident filter values (only for birth and death records)
+        maasin_resident = self.maasin_resident_cb.isChecked() if self.maasin_resident_cb.isVisible() else None
+        soleyte_resident = self.soleyte_resident_cb.isChecked() if self.soleyte_resident_cb.isVisible() else None
+        leyte_resident = self.leyte_resident_cb.isChecked() if self.leyte_resident_cb.isVisible() else None
         
         # Get registration date range if provided
         reg_start_date = None
@@ -748,7 +865,8 @@ class StatisticsWindow(QWidget):
                 try:
                     query, query_params = self._build_query_with_filter(
                         table, date_field, column, selected_key, record_type, start_date, end_date, 
-                        filter_value, min_age, max_age, reg_start_date, reg_end_date
+                        filter_value, min_age, max_age, reg_start_date, reg_end_date,
+                        maasin_resident, soleyte_resident, leyte_resident
                     )
                 except ValueError as ve:
                     box = QMessageBox(self)
