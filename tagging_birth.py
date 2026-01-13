@@ -346,7 +346,7 @@ class BirthTaggingWindow(QWidget):
             "NOT APPLICABLE",
             "DON'T KNOW"
         ])
-        self.attendant_combo.setFixedWidth(220)
+        self.attendant_combo.setFixedWidth(150)
         self.attendant_combo.setStyleSheet(combo_box_style)
         attendant_container.addWidget(QLabel("Attendant:"))
         attendant_container.addWidget(self.attendant_combo)
@@ -371,6 +371,39 @@ class BirthTaggingWindow(QWidget):
         reg_date_container.addWidget(self.date_of_reg_input)
         final_info_layout.addLayout(reg_date_container)
         form_layout.addLayout(final_info_layout)
+
+        # Resident Information
+        resident_layout = QHBoxLayout()
+        resident_layout.setSpacing(10)
+
+        maasin_resident_container = QVBoxLayout()
+        self.maasin_resident_combo = QComboBox()
+        self.maasin_resident_combo.addItems(["NO", "YES"])
+        self.maasin_resident_combo.setFixedWidth(150)
+        self.maasin_resident_combo.setStyleSheet(combo_box_style)
+        maasin_resident_container.addWidget(QLabel("Maasin Resident:"))
+        maasin_resident_container.addWidget(self.maasin_resident_combo)
+        resident_layout.addLayout(maasin_resident_container)
+
+        soleyte_resident_container = QVBoxLayout()
+        self.soleyte_resident_combo = QComboBox()
+        self.soleyte_resident_combo.addItems(["NO", "YES"])
+        self.soleyte_resident_combo.setFixedWidth(150)
+        self.soleyte_resident_combo.setStyleSheet(combo_box_style)
+        soleyte_resident_container.addWidget(QLabel("Soleyte Resident:"))
+        soleyte_resident_container.addWidget(self.soleyte_resident_combo)
+        resident_layout.addLayout(soleyte_resident_container)
+
+        leyte_resident_container = QVBoxLayout()
+        self.leyte_resident_combo = QComboBox()
+        self.leyte_resident_combo.addItems(["NO", "YES"])
+        self.leyte_resident_combo.setFixedWidth(150)
+        self.leyte_resident_combo.setStyleSheet(combo_box_style)
+        leyte_resident_container.addWidget(QLabel("Leyte Resident:"))
+        leyte_resident_container.addWidget(self.leyte_resident_combo)
+        resident_layout.addLayout(leyte_resident_container)
+
+        form_layout.addLayout(resident_layout)
 
         # Add the form widget to the scroll area
         scroll_area.setWidget(form_widget)
@@ -625,7 +658,8 @@ class BirthTaggingWindow(QWidget):
                     name, date_of_birth, sex, page_no, book_no, reg_no, 
                     date_of_reg, place_of_birth, name_of_mother, nationality_mother,
                     name_of_father, nationality_father, parents_marriage_date,
-                    parents_marriage_place, attendant, type_of_birth, late_registration
+                    parents_marriage_place, attendant, type_of_birth, late_registration,
+                    maasin_resident, soleyte_resident, leyte_resident
                 FROM birth_index 
                 WHERE file_path = %s
             """, (file_path,))
@@ -636,7 +670,8 @@ class BirthTaggingWindow(QWidget):
                 (name, date_of_birth, sex, page_no, book_no, reg_no, 
                  date_of_reg, place_of_birth, name_of_mother, nationality_mother,
                  name_of_father, nationality_father, parents_marriage_date,
-                 parents_marriage_place, attendant, type_of_birth, late_registration) = result
+                 parents_marriage_place, attendant, type_of_birth, late_registration,
+                 maasin_resident, soleyte_resident, leyte_resident) = result
 
                 # Set QLineEdit values
                 self.page_no_input.setText(str(page_no) if page_no else "")
@@ -664,6 +699,11 @@ class BirthTaggingWindow(QWidget):
                     self.type_of_birth_combo.setCurrentText(type_of_birth)
                 else:
                     self.type_of_birth_combo.setCurrentIndex(0)  # Set to "N/A"
+
+                # Set resident combo boxes
+                self.maasin_resident_combo.setCurrentText("YES" if maasin_resident is True else "NO")
+                self.soleyte_resident_combo.setCurrentText("YES" if soleyte_resident is True else "NO")
+                self.leyte_resident_combo.setCurrentText("YES" if leyte_resident is True else "NO")
 
                 # Handle dates
                 if date_of_birth:
@@ -708,6 +748,9 @@ class BirthTaggingWindow(QWidget):
                 self.attendant_combo.setCurrentIndex(0)
                 self.late_reg_combo.setCurrentIndex(0)
                 self.type_of_birth_combo.setCurrentIndex(0)
+                self.maasin_resident_combo.setCurrentIndex(0)
+                self.soleyte_resident_combo.setCurrentIndex(0)
+                self.leyte_resident_combo.setCurrentIndex(0)
                 
                 self.date_of_reg_input.setDate(QDate.fromString(self.last_reg_date, "yyyy-MM-dd"))
                 self.date_of_birth_input.setDate(QDate.currentDate())
@@ -818,14 +861,20 @@ class BirthTaggingWindow(QWidget):
                 attendant = self.attendant_combo.currentText()
                 late_registration = self.late_reg_combo.currentText().strip().lower() == "yes"
                 
+                # Get resident values
+                maasin_resident = self.maasin_resident_combo.currentText().strip().lower() == "yes"
+                soleyte_resident = self.soleyte_resident_combo.currentText().strip().lower() == "yes"
+                leyte_resident = self.leyte_resident_combo.currentText().strip().lower() == "yes"
+                
                 cursor.execute("""
                     INSERT INTO birth_index (
                         file_path, name, date_of_birth, sex, page_no, book_no, reg_no,
                         date_of_reg, place_of_birth, name_of_mother, nationality_mother,
                         name_of_father, nationality_father, parents_marriage_date,
-                        parents_marriage_place, attendant, type_of_birth, late_registration
+                        parents_marriage_place, attendant, type_of_birth, late_registration,
+                        maasin_resident, soleyte_resident, leyte_resident
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     ON CONFLICT(file_path) DO UPDATE SET
                         name = EXCLUDED.name,
@@ -844,12 +893,16 @@ class BirthTaggingWindow(QWidget):
                         parents_marriage_place = EXCLUDED.parents_marriage_place,
                         attendant = EXCLUDED.attendant,
                         late_registration = EXCLUDED.late_registration,
-                        type_of_birth = EXCLUDED.type_of_birth
+                        type_of_birth = EXCLUDED.type_of_birth,
+                        maasin_resident = EXCLUDED.maasin_resident,
+                        soleyte_resident = EXCLUDED.soleyte_resident,
+                        leyte_resident = EXCLUDED.leyte_resident
                 """, (
                     self.selected_pdf, name, date_of_birth, sex, page_no, book_no, reg_no,
                     date_of_reg, place_of_birth, name_of_mother, nationality_mother,
                     name_of_father, nationality_father, parents_marriage_date,
-                    parents_marriage_place, attendant, type_of_birth, late_registration
+                    parents_marriage_place, attendant, type_of_birth, late_registration,
+                    maasin_resident, soleyte_resident, leyte_resident
                 ))
 
                 AuditLogger.log_action(
@@ -1032,9 +1085,11 @@ class BirthTaggingWindow(QWidget):
                 "WINDOW_OPENED",
                 {"window": "BirthTaggingWindow"}
             )
-            conn.commit()
+            if not conn.closed:
+                conn.commit()
         finally:
-            self.closeConnection()
+            if not conn.closed:
+                self.closeConnection()
 
     def closeEvent(self, event):
         conn = self.create_connection()
