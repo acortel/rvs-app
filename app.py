@@ -523,8 +523,8 @@ class MainWindow(QMainWindow):
         self.sub_menu_layout.setSpacing(0)
         
         # Add sub-menu buttons
-        self.statistics_btn = QPushButton("Statistics")
-        self.tagging_btn = QPushButton("Tagging")
+        self.statistics_btn = QPushButton("Generate Statistics")
+        self.tagging_btn = QPushButton("Tag Records")
         self.book_viewer_btn = QPushButton("Book Viewer")
         
         # Set object names for sub-menu styling
@@ -579,7 +579,7 @@ class MainWindow(QMainWindow):
         self.sub_menu_layout.setSpacing(0)
         
         # Add sub-menu buttons
-        self.manage_user_btn = QPushButton("Manage User")
+        self.manage_user_btn = QPushButton("Manage Users")
         self.audit_log_btn = QPushButton("Audit Logbook")
         
         # Set object names for sub-menu styling
@@ -840,10 +840,10 @@ class MainWindow(QMainWindow):
         self.animation_group.start()
         
         self.is_sidebar_expanded = True
-        self.verify_button.setText("  Verify")
-        self.filename_search_button.setText("  Search")
+        self.verify_button.setText("  Verify Records")
+        self.filename_search_button.setText("  Search Files")
         self.everify_button.setText("  eVerify")
-        self.release_button.setText("  Release")
+        self.release_button.setText("  Releasing")
         self.other_features_button.setText("  Other Features")
         self.user_management_button.setText("  User Management")
         self.logout_button.setText("  Logout")

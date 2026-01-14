@@ -45,7 +45,7 @@ class SearchWindowBase(QMainWindow):
         # Set styles
         for button in [
             self.ui.search_button, self.ui.create_form, self.ui.no_record,
-            self.ui.destroyed, self.ui.auto_form
+            self.ui.destroyed
         ]:
             button.setStyleSheet(search_button_style)
         
@@ -131,13 +131,14 @@ class SearchWindowBase(QMainWindow):
         """)
         
         # Set tooltips
-        self.ui.auto_form.setToolTip("Auto-generate Form")
         self.ui.create_form.setToolTip("Create Form")
         self.ui.no_record.setToolTip("Create No Record Form")
         self.ui.destroyed.setToolTip("Create Record Destroyed Form")
         
+        # Hide auto_form button in search.py (it's only used in verify.py)
+        self.ui.auto_form.setHidden(True)
+        
         # Connect buttons
-        # self.ui.auto_form.clicked.connect(self.open_auto_form)
         self.ui.search_button.clicked.connect(self.search_pdfs)
         self.ui.create_form.clicked.connect(self.open_form_file)
         self.ui.no_record.clicked.connect(self.open_no_record)
@@ -652,12 +653,12 @@ class SearchWindowBase(QMainWindow):
 # Subclasses for each document type
 class SearchBirthWindow(SearchWindowBase):
     def __init__(self, username, parent=None, main_window=None):
-        super().__init__(Ui_SearchBirthWindow, r"\\server\MCR\LIVE BIRTH", r'forms\FORM 1-A.pdf', r'forms\NO RECORD OF LIVE BIRTH.pdf', r'forms\DESTROYED - LIVE BIRTH.pdf', username, parent, main_window)
+        super().__init__(Ui_SearchBirthWindow, r"\\server\MCR\LIVE BIRTH", r'forms\FORM 1-A.pdf', r'forms\FORM 1-B.pdf', r'forms\FORM 1-C.pdf', username, parent, main_window)
 
 class SearchDeathWindow(SearchWindowBase):
     def __init__(self, username, parent=None, main_window=None):
-        super().__init__(Ui_SearchDeathWindow, r"\\server\MCR\DEATH", r'forms\FORM 2-A.pdf', r'forms\NO RECORD OF DEATH.pdf', r'forms\DESTROYED - DEATH.pdf', username, parent, main_window)
+        super().__init__(Ui_SearchDeathWindow, r"\\server\MCR\DEATH", r'forms\FORM 2-A.pdf', r'forms\FORM 2-B.pdf', r'forms\FORM 2-C.pdf', username, parent, main_window)
 
 class SearchMarriageWindow(SearchWindowBase):
     def __init__(self, username, parent=None, main_window=None):
-        super().__init__(Ui_SearchMarriageWindow, r"\\server\MCR\MARRIAGE", r'forms\FORM 3-A.pdf', r'forms\NO RECORD OF MARRIAGE.pdf', r'forms\DESTROYED - MARRIAGE.pdf', username, parent, main_window)
+        super().__init__(Ui_SearchMarriageWindow, r"\\server\MCR\MARRIAGE", r'forms\FORM 3-A.pdf', r'forms\FORM 3-B.pdf', r'forms\FORM 3-C.pdf', username, parent, main_window)

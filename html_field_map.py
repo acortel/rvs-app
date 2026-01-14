@@ -177,6 +177,9 @@ def build_template_context(record: Dict[str, Any], form_type: str, current_user:
                 context[key] = current_user.upper()
             elif key in ['certificate_date', 'date_paid'] and today_date:
                 context[key] = _format_date_to_long(today_date)
+            elif key == 'remarks' and 'remarks' in record:
+                # If remarks is provided in the record, use it
+                context[key] = record.get('remarks', '')
             else:
                 context[key] = ''
 

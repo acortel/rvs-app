@@ -142,12 +142,20 @@ class VerifyWindowBase(QMainWindow):
         self.ui.no_record.setToolTip("Create No Record Form")
         self.ui.destroyed.setToolTip("Create Record Destroyed Form")
         
+        # Create "Add Remarks" button
+        self.add_remarks_button = QPushButton()
+        self.add_remarks_button.setIcon(QIcon("icons/comment.png"))
+        self.add_remarks_button.setIconSize(QSize(20, 20))
+        self.add_remarks_button.setStyleSheet(search_button_style)
+        self.add_remarks_button.setToolTip("Add remarks to selected record")
+        
         # Connect buttons
         self.ui.auto_form.clicked.connect(self.open_auto_form)
         self.ui.search_button.clicked.connect(self.search_pdfs)
         self.ui.create_form.clicked.connect(self.open_form_file)
         self.ui.no_record.clicked.connect(self.open_no_record)
         self.ui.destroyed.clicked.connect(self.open_destroyed_record)
+        self.add_remarks_button.clicked.connect(self.add_remarks_to_record)
 
         # Setup combo box
         self.ui.search_by_comboBox.addItems(["Name", "Date", "Reg No."])
@@ -203,6 +211,12 @@ class VerifyWindowBase(QMainWindow):
         self.ui.search_button.setMaximumWidth(100)
         self.ui.everify_button.setMaximumWidth(130)
         self.ui.search_by_comboBox.setMaximumWidth(100)
+
+        # Add "Add Remarks" button to the vertical button layout
+        # Find the vertical layout that contains the form buttons (auto_form, create_form, etc.)
+        if hasattr(self.ui, 'verticalLayout'):
+            self.add_remarks_button.setFixedHeight(32)
+            self.ui.verticalLayout.addWidget(self.add_remarks_button)
 
         # Replace the old horizontal layout with the new search layout
         if self.ui.horizontalLayout.count() > 0:
@@ -290,13 +304,13 @@ class VerifyWindowBase(QMainWindow):
                     SELECT name, date_of_birth, sex, page_no, book_no, reg_no, 
                            date_of_reg, place_of_birth, name_of_mother, nationality_mother,
                            name_of_father, nationality_father, parents_marriage_date,
-                           parents_marriage_place, attendant
+                           parents_marriage_place, attendant, remarks
                     FROM birth_index 
                     WHERE normalize_path(file_path) = %s
                 """, (normalized_path,))
                 record = cursor.fetchone()
                 if record:
-                    (name, dob, sex, page_no, book_no, reg_no, dor, pob, mother, mother_nat, father, father_nat, parents_marriage_date, parents_marriage_place, attendant) = record
+                    (name, dob, sex, page_no, book_no, reg_no, dor, pob, mother, mother_nat, father, father_nat, parents_marriage_date, parents_marriage_place, attendant, remarks) = record
                     record_dict = {
                         'name': name,
                         'date_of_birth': dob.strftime('%Y-%m-%d') if dob else '',
@@ -312,7 +326,8 @@ class VerifyWindowBase(QMainWindow):
                         'nationality_father': father_nat,
                         'parents_marriage_date': parents_marriage_date.strftime('%Y-%m-%d') if parents_marriage_date else '',
                         'parents_marriage_place': parents_marriage_place,
-                        'attendant': attendant
+                        'attendant': attendant,
+                        'remarks': remarks
                     }
 
             elif isinstance(self, VerifyDeathWindow):
@@ -321,13 +336,13 @@ class VerifyWindowBase(QMainWindow):
                 cursor.execute("""
                     SELECT name, date_of_death, sex, page_no, book_no, reg_no,
                            date_of_reg, age_years, civil_status, nationality, place_of_death,
-                           cause_of_death
+                           cause_of_death, remarks
                     FROM death_index 
                     WHERE normalize_path(file_path) = %s
                 """, (normalized_path,))
                 record = cursor.fetchone()
                 if record:
-                    (name, dod, sex, page_no, book_no, reg_no, dor, age, civil_status, nationality, pod, cod) = record
+                    (name, dod, sex, page_no, book_no, reg_no, dor, age, civil_status, nationality, pod, cod, remarks) = record
                     record_dict = {
                         'name': name,
                         'date_of_death': dod.strftime('%Y-%m-%d') if dod else '',
@@ -340,7 +355,8 @@ class VerifyWindowBase(QMainWindow):
                         'civil_status': civil_status,
                         'nationality': nationality,
                         'place_of_death': pod,
-                        'cause_of_death': cod
+                        'cause_of_death': cod,
+                        'remarks': remarks
                     }
             elif isinstance(self, VerifyMarriageWindow):
                 table = "marriage_index"
@@ -349,13 +365,13 @@ class VerifyWindowBase(QMainWindow):
                     SELECT husband_name, wife_name, date_of_marriage, page_no, book_no, reg_no,
                            husband_age, wife_age, husb_nationality, wife_nationality,
                            husb_civil_status, wife_civil_status, husb_mother, wife_mother,
-                           husb_father, wife_father, date_of_reg, place_of_marriage
+                           husb_father, wife_father, date_of_reg, place_of_marriage, remarks
                     FROM marriage_index 
                     WHERE normalize_path(file_path) = %s
                 """, (normalized_path,))
                 record = cursor.fetchone()
                 if record:
-                    (husband, wife, dom, page_no, book_no, reg_no, husband_age, wife_age, husb_nat, wife_nat, husb_civil, wife_civil, husb_mother, wife_mother, husb_father, wife_father, dor, pom) = record
+                    (husband, wife, dom, page_no, book_no, reg_no, husband_age, wife_age, husb_nat, wife_nat, husb_civil, wife_civil, husb_mother, wife_mother, husb_father, wife_father, dor, pom, remarks) = record
                     record_dict = {
                         'husband_name': husband,
                         'wife_name': wife,
@@ -374,7 +390,8 @@ class VerifyWindowBase(QMainWindow):
                         'husb_father': husb_father,
                         'wife_father': wife_father,
                         'date_of_reg': dor.strftime('%Y-%m-%d') if dor else '',
-                        'place_of_marriage': pom
+                        'place_of_marriage': pom,
+                        'remarks': remarks
                     }
             else:
                 raise ValueError("Unknown window type for form preview")
@@ -441,6 +458,190 @@ class VerifyWindowBase(QMainWindow):
             box.setIcon(QMessageBox.Critical)
             box.setWindowTitle("Error")
             box.setText(f"Failed to open form: {str(e)}")
+            box.setStandardButtons(QMessageBox.Ok)
+            box.setStyleSheet(message_box_style)
+            box.exec()
+        finally:
+            if cursor:
+                cursor.close()
+            self.closeConnection()
+
+    def add_remarks_to_record(self):
+        """Add or update remarks for the selected record in the database."""
+        conn = self.create_connection()
+        cursor = None
+        try:
+            # Get the selected file from results list
+            selected_items = self.ui.results_list.selectedItems()
+            if not selected_items:
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Warning)
+                box.setWindowTitle("Warning")
+                box.setText("Please select a record first.")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
+                return
+
+            selected_file = selected_items[0].text()
+            regyear = self.ui.regyear_textEdit.text().strip()
+            if not regyear:
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Warning)
+                box.setWindowTitle("Warning")
+                box.setText("Please enter a registration year.")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
+                return
+
+            # Get the record data from database to identify the record
+            cursor = conn.cursor()
+            file_path = os.path.join(self.search_path, regyear, selected_file)
+            normalized_path = self.normalize_path(file_path)
+            
+            print(f"\nFetching reg_no for file path: {normalized_path}")
+            
+            reg_no = None
+            table_name = None
+            form_type = ""
+
+            # Determine which table to query based on window type
+            if isinstance(self, VerifyBirthWindow):
+                table_name = "birth_index"
+                form_type = "Birth"
+                cursor.execute("SELECT reg_no FROM birth_index WHERE normalize_path(file_path) = %s", (normalized_path,))
+            elif isinstance(self, VerifyDeathWindow):
+                table_name = "death_index"
+                form_type = "Death"
+                cursor.execute("SELECT reg_no FROM death_index WHERE normalize_path(file_path) = %s", (normalized_path,))
+            elif isinstance(self, VerifyMarriageWindow):
+                table_name = "marriage_index"
+                form_type = "Marriage"
+                cursor.execute("SELECT reg_no FROM marriage_index WHERE normalize_path(file_path) = %s", (normalized_path,))
+            else:
+                raise ValueError("Unknown window type")
+
+            record = cursor.fetchone()
+            if record:
+                reg_no = record[0]
+            else:
+                print(f"No record found for file path: {normalized_path}")
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Warning)
+                box.setWindowTitle("Warning")
+                box.setText("Could not find record in database.")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
+                return
+
+            # Open a dialog for the user to enter remarks
+            dialog = QDialog(self)
+            dialog.setWindowTitle(f"Add Remarks - {form_type}")
+            dialog.setGeometry(100, 100, 500, 300)
+            dialog.setStyleSheet("background-color: #FFFFFF;")
+            
+            layout = QVBoxLayout()
+            
+            label = QLabel(f"Registration No: {reg_no}\nForm Type: {form_type}\n\nEnter remarks:")
+            label.setStyleSheet("""
+                QLabel {
+                    color: #212121;
+                    font-weight: bold;
+                    padding: 5px;
+                }
+            """)
+            layout.addWidget(label)
+            
+            text_edit = QPlainTextEdit()
+            text_edit.setPlaceholderText("Enter your remarks here...")
+            text_edit.setStyleSheet("""
+                QPlainTextEdit {
+                    background-color: #FFFFFF;
+                    color: #212121;
+                    border: 1px solid #D1D0D0;
+                    border-radius: 5px;
+                    padding: 5px;
+                    font-family: Arial;
+                    font-size: 10pt;
+                }
+                QPlainTextEdit:focus {
+                    border: 1px solid #ce305e;
+                    background-color: #fef2f4;
+                }
+            """)
+            layout.addWidget(text_edit)
+            
+            button_layout = QHBoxLayout()
+            save_button = QPushButton("Save")
+            cancel_button = QPushButton("Cancel")
+            
+            # Style buttons
+            button_style = """
+                QPushButton {
+                    background-color: #ce305e;
+                    color: #FFFFFF;
+                    border: none;
+                    border-radius: 5px;
+                    padding: 8px 16px;
+                    font-weight: bold;
+                    font-size: 10pt;
+                }
+                QPushButton:hover {
+                    background-color: #e0446a;
+                }
+                QPushButton:pressed {
+                    background-color: #a82348;
+                }
+            """
+            save_button.setStyleSheet(button_style)
+            cancel_button.setStyleSheet(button_style)
+            
+            button_layout.addWidget(save_button)
+            button_layout.addWidget(cancel_button)
+            layout.addLayout(button_layout)
+            
+            dialog.setLayout(layout)
+            
+            # Connect button clicks
+            save_button.clicked.connect(dialog.accept)
+            cancel_button.clicked.connect(dialog.reject)
+            
+            # Show dialog
+            if dialog.exec() == QDialog.Accepted:
+                remarks = text_edit.toPlainText()
+                
+                # Update database
+                cursor.execute(
+                    f"UPDATE {table_name} SET remarks = %s WHERE reg_no = %s",
+                    (remarks, reg_no)
+                )
+                conn.commit()
+                
+                # Log the action
+                AuditLogger.log_action(
+                    conn,
+                    self.current_user,
+                    "REMARKS_ADDED",
+                    {"table": table_name, "reg_no": reg_no, "remarks": remarks[:100]}
+                )
+                conn.commit()
+                
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Information)
+                box.setWindowTitle("Success")
+                box.setText("Remarks saved successfully.")
+                box.setStandardButtons(QMessageBox.Ok)
+                box.setStyleSheet(message_box_style)
+                box.exec()
+            
+        except Exception as e:
+            print(f"Error adding remarks: {str(e)}")
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Critical)
+            box.setWindowTitle("Error")
+            box.setText(f"Failed to add remarks: {str(e)}")
             box.setStandardButtons(QMessageBox.Ok)
             box.setStyleSheet(message_box_style)
             box.exec()
@@ -1015,12 +1216,12 @@ class VerifyWindowBase(QMainWindow):
 # Subclasses for each document type
 class VerifyBirthWindow(VerifyWindowBase):
     def __init__(self, username, parent=None, main_window=None):
-        super().__init__(Ui_SearchBirthWindow, r"\\server\MCR\LIVE BIRTH", r'html_forms\form1a.html', r'html_forms\form1b.html', r'html_forms\form1c.html', username, parent, main_window)
+        super().__init__(Ui_SearchBirthWindow, r"\\server\MCR\LIVE BIRTH", r'forms\FORM 1-A.pdf', r'forms\FORM 1-B.pdf', r'forms\FORM 1-C.pdf', username, parent, main_window)
 
 class VerifyDeathWindow(VerifyWindowBase):
     def __init__(self, username, parent=None, main_window=None):
-        super().__init__(Ui_SearchDeathWindow, r"\\server\MCR\DEATH", r'html_forms\form2a.html', r'html_forms\form2b.html', r'html_forms\form2c.html', username, parent, main_window)
+        super().__init__(Ui_SearchDeathWindow, r"\\server\MCR\DEATH", r'forms\FORM 2-A.pdf', r'forms\FORM 2-B.pdf', r'forms\FORM 2-C.pdf', username, parent, main_window)
 
 class VerifyMarriageWindow(VerifyWindowBase):
     def __init__(self, username, parent=None, main_window=None):
-        super().__init__(Ui_SearchMarriageWindow, r"\\server\MCR\MARRIAGE", r'html_forms\form3a.html', r'html_forms\form3b.html', r'html_forms\form3c.html', username, parent, main_window)
+        super().__init__(Ui_SearchMarriageWindow, r"\\server\MCR\MARRIAGE", r'forms\FORM 3-A.pdf', r'forms\FORM 3-B.pdf', r'forms\FORM 3-C.pdf', username, parent, main_window)
