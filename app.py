@@ -45,8 +45,8 @@ basedir = os.path.dirname(__file__)
 
 # Login Dialog
 class Login(QDialog, Ui_Login_Dialog):
-    # Add a custom signal to emit the user info (username and full name) on success
-    login_success = Signal(str, str)  # username, full_name
+    # Add a custom signal to emit the user info (username, full name, and superuser status) on success
+    login_success = Signal(str, str, bool)  # username, full_name, is_superuser
 
     def __init__(self):
         super().__init__()
@@ -139,16 +139,16 @@ class Login(QDialog, Ui_Login_Dialog):
                 
             cursor = conn.cursor()
             
-            # Check credentials and fetch user info
+            # Check credentials and fetch user info including superuser status
             cursor.execute(
-                "SELECT username, firstname, lastname FROM users_list WHERE username = %s AND password = %s",
+                "SELECT username, firstname, lastname, is_superuser FROM users_list WHERE username = %s AND password = %s",
                 (username, password)
             )
             
             user = cursor.fetchone()
             
             if user:
-                username, firstname, lastname = user
+                username, firstname, lastname, is_superuser = user
                 full_name = f"{firstname} {lastname}".strip()
                 
                 box = QMessageBox(self)
@@ -159,7 +159,7 @@ class Login(QDialog, Ui_Login_Dialog):
 
                 box.setStyleSheet(message_box_style)
                 box.exec()
-                self.login_success.emit(username, full_name)
+                self.login_success.emit(username, full_name, is_superuser)
                 AuditLogger.log_action(
                     conn,
                     username,
@@ -207,6 +207,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.current_user = None
+        self.current_user_is_superuser = False
         self.windows = {}
         self.connection = None
 
@@ -867,21 +868,37 @@ class MainWindow(QMainWindow):
             self.connection = None
 
     # log current user
-    def set_current_user(self, username, full_name):
+    def set_current_user(self, username, full_name, is_superuser=False):
         conn = self.create_connection()
         try:
-            print(f"Logging action: user={username}, full_name={full_name}")
+            print(f"Logging action: user={username}, full_name={full_name}, is_superuser={is_superuser}")
             self.current_user = username
             self.current_user_full_name = full_name  # Store full name
+            self.current_user_is_superuser = is_superuser  # Store superuser status
+            
+            # Configure UI based on superuser status
+            self.configure_ui_for_user_role(is_superuser)
+            
             AuditLogger.log_action(
                 conn,
                 username,
                 "SESSION_START",
-                {"username": username}
+                {"username": username, "is_superuser": is_superuser}
             )
             conn.commit()
         finally:
             self.closeConnection()
+
+    def configure_ui_for_user_role(self, is_superuser):
+        """Configure UI elements based on user's superuser status"""
+        # Always show Manage Users button (superusers can manage all, non-superusers can edit themselves)
+        self.manage_user_btn.setVisible(True)
+        
+        # Hide Audit Logbook button for non-superusers
+        if not is_superuser:
+            self.audit_log_btn.setVisible(False)
+        else:
+            self.audit_log_btn.setVisible(True)
 
     def logout(self):
         # Expand sidebar first if it's contracted
@@ -1514,7 +1531,7 @@ class MainWindow(QMainWindow):
         try:
             manage_user = self.windows.get('manage_user')
             if manage_user is None or not manage_user.isVisible():
-                manage_user = ManageUserForm(self.current_user, parent=self)
+                manage_user = ManageUserForm(self.current_user, self.current_user_is_superuser, parent=self)
                 manage_user.setParent(self)
                 manage_user.setWindowFlag(Qt.Window)
                 self.windows['manage_user'] = manage_user
@@ -1535,11 +1552,33 @@ class MainWindow(QMainWindow):
 
     # open audit log viewer window
     def open_audit_log_viewer(self):
+        # Check if user has superuser permissions
+        if not self.current_user_is_superuser:
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Warning)
+            box.setWindowTitle("Access Denied")
+            box.setText("Insufficient Permissions")
+            box.setDetailedText("Only superusers can access the Audit Logbook.")
+            box.setStyleSheet(message_box_style)
+            box.exec()
+            
+            conn = self.create_connection()
+            try:
+                AuditLogger.log_action(
+                    conn,
+                    self.current_user,
+                    "AUDIT_LOG_ACCESS_DENIED",
+                    {"reason": "insufficient_permissions"}
+                )
+            finally:
+                self.closeConnection()
+            return
+        
         conn = self.create_connection()
         try:
             audit_log_viewer = self.windows.get('audit_log_viewer')
             if audit_log_viewer is None or not audit_log_viewer.isVisible():
-                audit_log_viewer = AuditLogViewer(self.current_user, parent=self)
+                audit_log_viewer = AuditLogViewer(self.current_user, self.current_user_is_superuser, parent=self)
                 audit_log_viewer.setParent(self)
                 audit_log_viewer.setWindowFlag(Qt.Window)
                 self.windows['audit_log_viewer'] = audit_log_viewer

@@ -17,11 +17,12 @@ from stylesheets import message_box_style, table_style, date_picker_style, combo
 folio = (8.5 * inch, 13 * inch)
 
 class AuditLogViewer(QMainWindow):
-    def __init__(self, username, parent=None):
+    def __init__(self, username, is_superuser=False, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Audit Logbook")
         self.setMinimumSize(1000, 600)
         self.current_user = username
+        self.is_superuser = is_superuser
         self.icon = QIcon('icons/profile.png')
         self.setWindowIcon(self.icon)
         

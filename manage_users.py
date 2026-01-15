@@ -17,9 +17,10 @@ from stylesheets import button_style, message_box_style, table_style
 
 # Manage Users Window
 class ManageUserForm(QWidget, Ui_Manage_User_Form):
-    def __init__(self, username, parent=None):
+    def __init__(self, username, is_superuser=False, parent=None):
         super().__init__(parent)
         self.current_user = username
+        self.is_superuser = is_superuser
         self.connection = None
         self.cursor = None
 
@@ -42,15 +43,16 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
         # set maximum width for table widget
         self.tableWidget.setMaximumWidth(800)
         # set no. of columns for table
-        self.tableWidget.setColumnCount(4)
+        self.tableWidget.setColumnCount(5)
         # set up width for columns
-        self.tableWidget.setColumnWidth(0, 150)
-        self.tableWidget.setColumnWidth(1, 150)
-        self.tableWidget.setColumnWidth(2, 150)
-        self.tableWidget.setColumnWidth(3, 150)
+        self.tableWidget.setColumnWidth(0, 120)
+        self.tableWidget.setColumnWidth(1, 120)
+        self.tableWidget.setColumnWidth(2, 120)
+        self.tableWidget.setColumnWidth(3, 120)
+        self.tableWidget.setColumnWidth(4, 80)
 
         # set table labels 
-        self.tableWidget.setHorizontalHeaderLabels(['First Name', 'Last Name', 'Username', 'Password'])
+        self.tableWidget.setHorizontalHeaderLabels(['First Name', 'Last Name', 'Username', 'Password', 'Superuser'])
 
         # hide the password column
         self.tableWidget.setColumnHidden(3, True)
@@ -92,6 +94,52 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
 
         # hide password input
         self.password_input.setEchoMode(QLineEdit.Password)
+
+        # Create superuser checkbox (will be shown/enabled only for superusers)
+        self.superuser_checkbox = QCheckBox("Superuser")
+        self.superuser_checkbox.setStyleSheet("""
+            QCheckBox {
+                color: #212121;
+                background-color: #F2F2F2;
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+            }
+        """)
+        # Initially hide the checkbox - will be shown only for superusers
+        self.superuser_checkbox.setVisible(False)
+        self.groupBox.layout().addWidget(self.superuser_checkbox)
+        
+        # Configure checkbox visibility based on user role
+        self.configure_ui_for_user_role()
+
+    # Configure UI based on user's superuser status
+    def configure_ui_for_user_role(self):
+        """Show/hide UI elements based on superuser status"""
+        if self.is_superuser:
+            self.superuser_checkbox.setVisible(True)
+            self.add_button.setEnabled(True)
+            self.delete_button.setEnabled(True)
+        else:
+            self.superuser_checkbox.setVisible(False)
+            self.add_button.setEnabled(False)
+            self.delete_button.setEnabled(False)
+
+    # Check if user has superuser permissions
+    def check_superuser_permission(self):
+        """Check if current user is a superuser. Show error if not."""
+        if not self.is_superuser:
+            box = QMessageBox()
+            box.setIcon(QMessageBox.Warning)
+            box.setText("Access Denied")
+            box.setWindowTitle("Insufficient Permissions")
+            box.setDetailedText("Only superusers can perform this action.")
+            box.setStyleSheet(message_box_style)
+            box.exec()
+            return False
+        return True
 
     # create or open connection to database
     def create_connection(self):
@@ -142,27 +190,37 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
                 
             cursor = conn.cursor()
 
-            # Get row count
-            cursor.execute("SELECT COUNT(*) FROM users_list")
-            count = cursor.fetchone()[0]
-
-            # Get all users
-            cursor.execute("SELECT firstname, lastname, username, password FROM users_list ORDER BY firstname, lastname")
+            # If user is a superuser, show all users. If not, show only their own account
+            if self.is_superuser:
+                cursor.execute("SELECT COUNT(*) FROM users_list")
+                count = cursor.fetchone()[0]
+                cursor.execute("SELECT firstname, lastname, username, password, is_superuser FROM users_list ORDER BY firstname, lastname")
+            else:
+                # Non-superuser can only see their own account
+                cursor.execute("SELECT COUNT(*) FROM users_list WHERE username = %s", (self.current_user,))
+                count = cursor.fetchone()[0]
+                cursor.execute("SELECT firstname, lastname, username, password, is_superuser FROM users_list WHERE username = %s", (self.current_user,))
+            
             users = cursor.fetchall()
 
             self.tableWidget.setRowCount(count)
             
             for row, user in enumerate(users):
                 for col, value in enumerate(user):
-                    self.tableWidget.setItem(row, col, QTableWidgetItem(str(value)))
+                    if col == 4:  # Superuser column
+                        # Display Yes/No for superuser status
+                        display_value = "Yes" if value else "No"
+                        self.tableWidget.setItem(row, col, QTableWidgetItem(display_value))
+                    else:
+                        self.tableWidget.setItem(row, col, QTableWidgetItem(str(value)))
 
-            self.tableWidget.setColumnHidden(3, True)
+            self.tableWidget.setColumnHidden(3, True)  # Hide password column
             
             AuditLogger.log_action(
                 conn,
                 self.current_user,
                 "USERS_LOADED",
-                {"count": count}
+                {"count": count, "is_superuser": self.is_superuser}
             )
             
         except psycopg2.Error as e:
@@ -184,6 +242,10 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
 
     # add user method
     def add_data(self):
+        # Check if user has superuser permissions
+        if not self.check_superuser_permission():
+            return
+            
         try:
             conn = self.create_connection()
             if not conn:
@@ -236,9 +298,9 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
 
             # Insert new user
             cursor.execute('''
-                INSERT INTO users_list (firstname, lastname, username, password)
-                VALUES (%s, %s, %s, %s)
-            ''', (fname, lname, username, password))
+                INSERT INTO users_list (firstname, lastname, username, password, is_superuser)
+                VALUES (%s, %s, %s, %s, %s)
+            ''', (fname, lname, username, password, is_superuser))
 
             AuditLogger.log_action(
                 conn,
@@ -247,7 +309,8 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
                 {
                     "first_name": fname,
                     "last_name": lname,
-                    "username": username
+                    "username": username,
+                    "is_superuser": is_superuser
                 }
             )
             
@@ -264,6 +327,7 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
             self.lname_input.clear()
             self.username_input.clear()
             self.password_input.clear()
+            self.superuser_checkbox.setChecked(False)
 
             # Refresh table
             self.load_data()
@@ -287,28 +351,47 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
 
     # edit user method
     def edit_data(self):
+        # Check if user has superuser permissions or is editing themselves
+        current_row = self.tableWidget.currentRow()
+        if current_row < 0:
+            box = QMessageBox()
+            box.setIcon(QMessageBox.Warning)
+            box.setText("No Selection")
+            box.setWindowTitle("No Selection")
+            box.setStyleSheet(message_box_style)
+            box.exec()
+            return
+        
+        selected_username = self.tableWidget.item(current_row, 2).text()
+        
+        # Allow edit if: user is superuser OR user is editing their own account
+        if not self.is_superuser and selected_username != self.current_user:
+            box = QMessageBox()
+            box.setIcon(QMessageBox.Warning)
+            box.setText("Access Denied")
+            box.setWindowTitle("Insufficient Permissions")
+            box.setDetailedText("You can only edit your own account.")
+            box.setStyleSheet(message_box_style)
+            box.exec()
+            return
+        
         try:
-            current_row = self.tableWidget.currentRow()
-            
-            if current_row < 0:
-                # QMessageBox.warning(self, "No Selection", "Please select a user to edit.")
-                box = QMessageBox()
-                box.setIcon(QMessageBox.Warning)
-                box.setText("No Selection")
-                box.setWindowTitle("No Selection")
-                box.setStyleSheet(message_box_style)
-                box.exec()
-                return
-                
             self.fname_input.setText(self.tableWidget.item(current_row, 0).text())
             self.lname_input.setText(self.tableWidget.item(current_row, 1).text())
             self.username_input.setText(self.tableWidget.item(current_row, 2).text())
             self.password_input.setText(self.tableWidget.item(current_row, 3).text())
             
+            # Get superuser status from database
             conn = self.create_connection()
             if not conn:
                 return
                 
+            cursor = conn.cursor()
+            cursor.execute("SELECT is_superuser FROM users_list WHERE username = %s", (selected_username,))
+            result = cursor.fetchone()
+            if result:
+                self.superuser_checkbox.setChecked(result[0])
+            
             AuditLogger.log_action(
                 conn,
                 self.current_user,
@@ -342,7 +425,6 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
             
             current_row = self.tableWidget.currentRow()
             if current_row < 0:
-                # QMessageBox.warning(self, "No Selection", "Please select a user to update.")
                 box = QMessageBox()
                 box.setIcon(QMessageBox.Warning)
                 box.setText("No Selection")
@@ -353,10 +435,28 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
 
             old_username = self.tableWidget.item(current_row, 2).text()
             
+            # Allow update if: user is superuser OR user is editing their own account
+            if not self.is_superuser and old_username != self.current_user:
+                AuditLogger.log_action(
+                    conn,
+                    self.current_user,
+                    "USER_UPDATE_FAILED",
+                    {"reason": "insufficient_permissions", "username": old_username}
+                )
+                box = QMessageBox()
+                box.setIcon(QMessageBox.Warning)
+                box.setText("Access Denied")
+                box.setWindowTitle("Insufficient Permissions")
+                box.setDetailedText("You can only edit your own account.")
+                box.setStyleSheet(message_box_style)
+                box.exec()
+                return
+            
             fname = self.fname_input.text().strip()
             lname = self.lname_input.text().strip()
             username = self.username_input.text().strip()
             password = self.password_input.text().strip()
+            is_superuser = self.superuser_checkbox.isChecked()
 
             if not all([fname, lname, username, password]):
                 AuditLogger.log_action(
@@ -396,9 +496,9 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
             # Update user
             cursor.execute('''
                 UPDATE users_list 
-                SET firstname = %s, lastname = %s, username = %s, password = %s
+                SET firstname = %s, lastname = %s, username = %s, password = %s, is_superuser = %s
                 WHERE username = %s
-            ''', (fname, lname, username, password, old_username))
+            ''', (fname, lname, username, password, is_superuser, old_username))
 
             AuditLogger.log_action(
                 conn,
@@ -408,7 +508,8 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
                     "old_username": old_username,
                     "new_username": username,
                     "first_name": fname,
-                    "last_name": lname
+                    "last_name": lname,
+                    "is_superuser": is_superuser
                 }
             )
             
@@ -425,6 +526,7 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
             self.lname_input.clear()
             self.username_input.clear()
             self.password_input.clear()
+            self.superuser_checkbox.setChecked(False)
 
             # Refresh table
             self.load_data()
@@ -448,6 +550,10 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
 
     # delete user method
     def delete_data(self):
+        # Check if user has superuser permissions
+        if not self.check_superuser_permission():
+            return
+            
         try:
             conn = self.create_connection()
             if not conn:
@@ -457,7 +563,6 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
             
             current_row = self.tableWidget.currentRow()
             if current_row < 0:
-                # QMessageBox.warning(self, "No Selection", "Please select a user to delete.")
                 box = QMessageBox()
                 box.setIcon(QMessageBox.Warning)
                 box.setText("No Selection")
@@ -516,6 +621,7 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
                 self.lname_input.clear()
                 self.username_input.clear()
                 self.password_input.clear()
+                self.superuser_checkbox.setChecked(False)
                 
                 # Refresh table
                 self.load_data()
