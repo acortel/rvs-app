@@ -111,6 +111,21 @@ class ManageUserForm(QWidget, Ui_Manage_User_Form):
         # Initially hide the checkbox - will be shown only for superusers
         self.superuser_checkbox.setVisible(False)
         self.groupBox.layout().addWidget(self.superuser_checkbox)
+        
+        # Configure checkbox visibility based on user role
+        self.configure_ui_for_user_role()
+
+    # Configure UI based on user's superuser status
+    def configure_ui_for_user_role(self):
+        """Show/hide UI elements based on superuser status"""
+        if self.is_superuser:
+            self.superuser_checkbox.setVisible(True)
+            self.add_button.setEnabled(True)
+            self.delete_button.setEnabled(True)
+        else:
+            self.superuser_checkbox.setVisible(False)
+            self.add_button.setEnabled(False)
+            self.delete_button.setEnabled(False)
 
     # Check if user has superuser permissions
     def check_superuser_permission(self):
