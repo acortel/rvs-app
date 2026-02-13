@@ -1,5 +1,6 @@
 import psycopg2
 from datetime import datetime
+import re
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas as pdf_canvas
@@ -46,7 +47,96 @@ class StatisticsWindow(QWidget):
         "Wife Nationality": "wife_nationality",
         "Place of Marriage": "place_of_marriage",
         "Ceremony Type": "ceremony_type",
+        # Resident filters
+        "Maasin Residents": "maasin_resident",
+        "SoLeyte Residents (Excl. Maasin)": "soleyte_resident_excl_maasin",
+        "SoLeyte Residents (Incl. Maasin)": "soleyte_resident",
+        "Leyte Residents": "leyte_resident",
+        "Residents outside Leyte": "residents_outside_leyte",
     }
+
+    # Breakdown mode keys per record type
+    BREAKDOWN_KEYS = {
+        "Live Birth": ["All", "Sex", "Attendant", "Type of Birth", "Late Registration"],
+        "Death": ["All", "Sex", "Civil Status", "Corpse Disposal", "Late Registration"],
+        "Marriage": ["All", "Husband Civil Status", "Wife Civil Status", "Ceremony Type", "Late Registration"],
+    }
+
+    # Total count mode keys per record type
+    TOTAL_COUNT_KEYS = {
+        "Live Birth": ["All", "Name", "Sex", "Place of Birth", "Name of Mother", "Name of Father", "Nationality of Mother", "Nationality of Father", "Attendant", "Type of Birth", "Late Registration", "Maasin Residents", "SoLeyte Residents (Excl. Maasin)", "SoLeyte Residents (Incl. Maasin)", "Leyte Residents", "Residents outside Leyte"],
+        "Death": ["All", "Name", "Sex", "Age", "Civil Status", "Nationality", "Place of Death", "Cause of Death", "Corpse Disposal", "Late Registration", "Maasin Residents", "SoLeyte Residents (Excl. Maasin)", "SoLeyte Residents (Incl. Maasin)", "Leyte Residents", "Residents outside Leyte"],
+        "Marriage": ["All", "Husband Name", "Husband Age", "Husband Civil Status", "Husband Nationality", "Wife Name", "Wife Age", "Wife Civil Status", "Wife Nationality", "Place of Marriage", "Ceremony Type", "Late Registration"],
+    }
+
+    # Secondary filter keys (all available filters)
+    SECONDARY_FILTER_KEYS = {
+        "Live Birth": ["None", "Sex", "Place of Birth", "Name of Mother", "Name of Father", "Nationality of Mother", "Nationality of Father", "Attendant", "Type of Birth", "Maasin Residents", "SoLeyte Residents (Excl. Maasin)", "SoLeyte Residents (Incl. Maasin)", "Leyte Residents", "Residents outside Leyte"],
+        "Death": ["None", "Sex", "Age", "Civil Status", "Nationality", "Place of Death", "Cause of Death", "Corpse Disposal", "Maasin Residents", "SoLeyte Residents (Excl. Maasin)", "SoLeyte Residents (Incl. Maasin)", "Leyte Residents", "Residents outside Leyte"],
+        "Marriage": ["None", "Husband Name", "Husband Age", "Husband Civil Status", "Husband Nationality", "Wife Name", "Wife Age", "Wife Civil Status", "Wife Nationality", "Place of Marriage", "Ceremony Type"],
+    }
+
+    # ComboBox style
+    COMBOBOX_STYLE = """
+        QComboBox {
+            background-color: #FFFFFF;
+            color: #212121;
+            border-radius: 4px;
+            padding: 4px;
+            border: 1px solid #D1D0D0;
+        }
+        QComboBox::item {
+            background-color: #FFFFFF;
+            color: #212121;
+        }
+        QComboBox::item:hover {
+            background-color: #ce305e;
+            color: #FFFFFF;
+        }
+        QComboBox::item:selected {
+            background-color: #ce305e;
+            color: #FFFFFF;
+        }
+        QComboBox:focus {
+            border: 1px solid #ce305e;
+            background-color: #fef2f4;
+        }
+    """
+    
+    LINEEDIT_STYLE = """
+        QLineEdit {
+            background-color: #FFFFFF;
+            color: #212121;
+            border-radius: 4px;
+            padding: 6px;
+            border: 1px solid #D1D0D0;
+        }
+        QLineEdit:focus {
+            border: 1px solid #ce305e;
+            background-color: #fef2f4;
+        }
+    """
+
+    SPINBOX_STYLE = """
+        QSpinBox {
+            background-color: #FFFFFF;
+            color: #212121;
+            border-radius: 4px;
+            padding: 4px;
+            border: 1px solid #D1D0D0;
+        }
+        QSpinBox:focus {
+            border: 1px solid #ce305e;
+            background-color: #fef2f4;
+        }
+        QSpinBox::up-button, QSpinBox::down-button {
+            background-color: #f0f0f0;
+            border: 1px solid #D1D0D0;
+        }
+        QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+            background-color: #ce305e;
+        }
+    """
 
     def __init__(self, username, parent=None):
         super().__init__(parent)
@@ -81,95 +171,107 @@ class StatisticsWindow(QWidget):
         left_layout = QVBoxLayout()
         left_layout.setAlignment(Qt.AlignTop)
 
+        # Record Type label
+        record_type_label = QLabel("Record Type:", self)
+        record_type_label.setStyleSheet("font-weight: bold; color: #212121;")
+        left_layout.addWidget(record_type_label)
+
         # Record type selection dropdown
         self.record_type_dropdown = QComboBox(self)
         self.record_type_dropdown.addItems(["Live Birth", "Death", "Marriage"])
-        self.record_type_dropdown.setStyleSheet("""
-            QComboBox {
-                background-color: #FFFFFF;
-                color: #212121;
-                border-radius: 4px;
-                padding: 4px;
-                border: 1px solid #D1D0D0;
-            }
-            QComboBox::item {
-                background-color: #FFFFFF;
-                color: #212121;
-            }
-            QComboBox::item:hover {
-                background-color: #ce305e;
-                color: #FFFFFF;
-            }
-            QComboBox::item:selected {
-                background-color: #ce305e;
-                color: #FFFFFF;
-            }
-            QComboBox:focus {
-                border: 1px solid #ce305e;
-                background-color: #fef2f4;
-            }
-        """)
-        self.record_type_dropdown.currentIndexChanged.connect(self.update_keys_for_record_type)
+        self.record_type_dropdown.setStyleSheet(self.COMBOBOX_STYLE)
+        self.record_type_dropdown.currentIndexChanged.connect(self.on_record_type_changed)
         left_layout.addWidget(self.record_type_dropdown)
 
-        # Key selection dropdown
-        self.key_dropdown = QComboBox(self)
-        self.key_dropdown.setStyleSheet("""
-            QComboBox {
-                background-color: #FFFFFF;
+        # Output Mode label
+        output_mode_label = QLabel("Output Mode:", self)
+        output_mode_label.setStyleSheet("font-weight: bold; color: #212121;")
+        left_layout.addWidget(output_mode_label)
+
+        # Output Mode dropdown
+        self.output_mode_dropdown = QComboBox(self)
+        self.output_mode_dropdown.addItems(["Total Count", "Breakdown"])
+        self.output_mode_dropdown.setStyleSheet(self.COMBOBOX_STYLE)
+        self.output_mode_dropdown.currentIndexChanged.connect(self.on_output_mode_changed)
+        left_layout.addWidget(self.output_mode_dropdown)
+
+        # Primary Key label
+        primary_key_label = QLabel("Primary Key:", self)
+        primary_key_label.setStyleSheet("font-weight: bold; color: #212121;")
+        left_layout.addWidget(primary_key_label)
+
+        # Primary Key dropdown
+        self.primary_key_dropdown = QComboBox(self)
+        self.primary_key_dropdown.setStyleSheet(self.COMBOBOX_STYLE)
+        self.primary_key_dropdown.currentIndexChanged.connect(self.on_primary_key_changed)
+        left_layout.addWidget(self.primary_key_dropdown)
+
+        # Primary Key Value label
+        self.primary_key_value_label = QLabel("Value:", self)
+        self.primary_key_value_label.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+                font-weight: bold;
                 color: #212121;
-                border-radius: 4px;
-                padding: 4px;
-                border: 1px solid #D1D0D0;
-            }
-            QComboBox::item {
-                background-color: #FFFFFF;
-                color: #212121;
-            }
-            QComboBox::item:hover {
-                background-color: #ce305e;
-                color: #FFFFFF;
-            }
-            QComboBox::item:selected {
-                background-color: #ce305e;
-                color: #FFFFFF;
-            }
-            QComboBox:focus {
-                border: 1px solid #ce305e;
-                background-color: #fef2f4;
+                margin-top: 10px;
             }
         """)
-        self.key_dropdown.currentIndexChanged.connect(self.update_filter_input_state)
-        left_layout.addWidget(self.key_dropdown)
+        left_layout.addWidget(self.primary_key_value_label)
+
+        # Primary Key Value input (text box)
+        self.primary_key_value_input = QLineEdit(self)
+        self.primary_key_value_input.setPlaceholderText("Enter value...")
+        self.primary_key_value_input.setStyleSheet(self.LINEEDIT_STYLE)
+        left_layout.addWidget(self.primary_key_value_input)
+
+        # Age range inputs (hidden by default, shown for age fields)
+        age_range_label = QLabel("Age Range:", self)
+        age_range_label.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+                font-weight: bold;
+                color: #212121;
+                margin-top: 10px;
+            }
+        """)
+        age_range_label.hide()
+        self.primary_age_range_label = age_range_label
+        left_layout.addWidget(age_range_label)
+
+        age_range_layout = QHBoxLayout()
+        age_range_layout.setSpacing(10)
+        
+        self.primary_min_age_input = QSpinBox(self)
+        self.primary_min_age_input.setMinimum(0)
+        self.primary_min_age_input.setMaximum(150)
+        self.primary_min_age_input.setValue(0)
+        self.primary_min_age_input.setPrefix("Min: ")
+        self.primary_min_age_input.setSuffix(" years")
+        self.primary_min_age_input.setStyleSheet(self.SPINBOX_STYLE)
+        self.primary_min_age_input.hide()
+        age_range_layout.addWidget(self.primary_min_age_input)
+
+        self.primary_max_age_input = QSpinBox(self)
+        self.primary_max_age_input.setMinimum(0)
+        self.primary_max_age_input.setMaximum(150)
+        self.primary_max_age_input.setValue(150)
+        self.primary_max_age_input.setPrefix("Max: ")
+        self.primary_max_age_input.setSuffix(" years")
+        self.primary_max_age_input.setStyleSheet(self.SPINBOX_STYLE)
+        self.primary_max_age_input.hide()
+        age_range_layout.addWidget(self.primary_max_age_input)
+
+        left_layout.addLayout(age_range_layout)
+
+        # Date Range Type label
+        date_range_type_label = QLabel("Date Range Type:", self)
+        date_range_type_label.setStyleSheet("font-weight: bold; color: #212121;")
+        left_layout.addWidget(date_range_type_label)
 
         # Date range type selection dropdown
         self.date_range_type_dropdown = QComboBox(self)
         self.date_range_type_dropdown.addItems(["Date of Event", "Date of Registration"])
-        self.date_range_type_dropdown.setStyleSheet("""
-            QComboBox {
-                background-color: #FFFFFF;
-                color: #212121;
-                border-radius: 4px;
-                padding: 4px;
-                border: 1px solid #D1D0D0;
-            }
-            QComboBox::item {
-                background-color: #FFFFFF;
-                color: #212121;
-            }
-            QComboBox::item:hover {
-                background-color: #ce305e;
-                color: #FFFFFF;
-            }
-            QComboBox::item:selected {
-                background-color: #ce305e;
-                color: #FFFFFF;
-            }
-            QComboBox:focus {
-                border: 1px solid #ce305e;
-                background-color: #fef2f4;
-            }
-        """)
+        self.date_range_type_dropdown.setStyleSheet(self.COMBOBOX_STYLE)
         self.date_range_type_dropdown.currentIndexChanged.connect(self.update_date_range_visibility)
         left_layout.addWidget(self.date_range_type_dropdown)
 
@@ -177,12 +279,13 @@ class StatisticsWindow(QWidget):
         self.date_label = QLabel("Date of Event Range:", self)
         self.date_label.setStyleSheet("""
             QLabel {
-                font-size: 12px;
+                font-size: 12px;                font-weight: bold;                font-weight: bold;
                 color: #212121;
                 margin-top: 10px;
             }
         """)
         left_layout.addWidget(self.date_label)
+        
         self.start_date_input = QDateEdit(self)
         self.start_date_input.setCalendarPopup(True)
         self.start_date_input.setDate(QDate.currentDate().addMonths(-1))
@@ -200,11 +303,13 @@ class StatisticsWindow(QWidget):
         self.reg_date_label.setStyleSheet("""
             QLabel {
                 font-size: 12px;
+                font-weight: bold;
                 color: #212121;
                 margin-top: 10px;
             }
         """)
         left_layout.addWidget(self.reg_date_label)
+        
         self.reg_start_date_input = QDateEdit(self)
         self.reg_start_date_input.setCalendarPopup(True)
         self.reg_start_date_input.setDate(QDate.currentDate().addMonths(-1))
@@ -217,158 +322,80 @@ class StatisticsWindow(QWidget):
         self.reg_end_date_input.setStyleSheet(date_picker_style)
         left_layout.addWidget(self.reg_end_date_input)
 
-        # Filter value input container
-        filter_container = QVBoxLayout()
-        self.filter_label = QLabel("Filter by Value (Optional):", self)
-        self.filter_label.setStyleSheet("""
+        # Secondary Filter section
+        secondary_label = QLabel("Secondary Filter (Optional):", self)
+        secondary_label.setStyleSheet("""
             QLabel {
                 font-size: 12px;
                 color: #212121;
                 margin-top: 10px;
+                font-weight: bold;
             }
         """)
-        filter_container.addWidget(self.filter_label)
+        left_layout.addWidget(secondary_label)
 
-        # Filter value input
-        self.filter_value_input = QLineEdit(self)
-        self.filter_value_input.setPlaceholderText("Filter by Value (Optional): ")
-        self.filter_value_input.setStyleSheet("""
-            QLineEdit {
-                background-color: #FFFFFF;
-                color: #212121;
-                border-radius: 4px;
-                padding: 6px;
-                border: 1px solid #D1D0D0;
-            }
-            QLineEdit:focus {
-                border: 1px solid #ce305e;
-                background-color: #fef2f4;
+        # Secondary filter key dropdown
+        self.secondary_filter_key_dropdown = QComboBox(self)
+        self.secondary_filter_key_dropdown.setStyleSheet(self.COMBOBOX_STYLE)
+        self.secondary_filter_key_dropdown.currentIndexChanged.connect(self.on_secondary_filter_key_changed)
+        left_layout.addWidget(self.secondary_filter_key_dropdown)
+
+        # Secondary filter value label
+        self.secondary_filter_value_label = QLabel("Value:", self)
+        self.secondary_filter_value_label.setStyleSheet("""
+            QLabel {
+                font-size: 12px;                font-weight: bold;                color: #212121;
+                margin-top: 5px;
             }
         """)
-        filter_container.addWidget(self.filter_value_input)
+        left_layout.addWidget(self.secondary_filter_value_label)
 
-        # Age range inputs (hidden by default, shown for age fields)
-        age_range_label = QLabel("Age Range:", self)
-        age_range_label.setStyleSheet("""
+        # Secondary filter value input
+        self.secondary_filter_value_input = QLineEdit(self)
+        self.secondary_filter_value_input.setPlaceholderText("Enter value...")
+        self.secondary_filter_value_input.setStyleSheet(self.LINEEDIT_STYLE)
+        left_layout.addWidget(self.secondary_filter_value_input)
+
+        # Secondary age range inputs (hidden by default, shown for age fields)
+        secondary_age_range_label = QLabel("Age Range:", self)
+        secondary_age_range_label.setStyleSheet("""
             QLabel {
                 font-size: 12px;
+                font-weight: bold;
                 color: #212121;
                 margin-top: 10px;
             }
         """)
-        age_range_label.hide()
-        self.age_range_label = age_range_label
-        filter_container.addWidget(age_range_label)
+        secondary_age_range_label.hide()
+        self.secondary_age_range_label = secondary_age_range_label
+        left_layout.addWidget(secondary_age_range_label)
 
-        age_range_layout = QHBoxLayout()
-        age_range_layout.setSpacing(10)
+        secondary_age_range_layout = QHBoxLayout()
+        secondary_age_range_layout.setSpacing(10)
         
-        self.min_age_input = QSpinBox(self)
-        self.min_age_input.setMinimum(0)
-        self.min_age_input.setMaximum(150)
-        self.min_age_input.setValue(0)
-        self.min_age_input.setPrefix("Min: ")
-        self.min_age_input.setSuffix(" years")
-        self.min_age_input.setStyleSheet("""
-            QSpinBox {
-                background-color: #FFFFFF;
-                color: #212121;
-                border-radius: 4px;
-                padding: 6px;
-                border: 1px solid #D1D0D0;
-            }
-            QSpinBox:focus {
-                border: 1px solid #ce305e;
-                background-color: #fef2f4;
-            }
-        """)
-        self.min_age_input.hide()
-        age_range_layout.addWidget(self.min_age_input)
+        self.secondary_min_age_input = QSpinBox(self)
+        self.secondary_min_age_input.setMinimum(0)
+        self.secondary_min_age_input.setMaximum(150)
+        self.secondary_min_age_input.setValue(0)
+        self.secondary_min_age_input.setPrefix("Min: ")
+        self.secondary_min_age_input.setSuffix(" years")
+        self.secondary_min_age_input.setStyleSheet(self.SPINBOX_STYLE)
+        self.secondary_min_age_input.hide()
+        secondary_age_range_layout.addWidget(self.secondary_min_age_input)
 
-        self.max_age_input = QSpinBox(self)
-        self.max_age_input.setMinimum(0)
-        self.max_age_input.setMaximum(150)
-        self.max_age_input.setValue(150)
-        self.max_age_input.setPrefix("Max: ")
-        self.max_age_input.setSuffix(" years")
-        self.max_age_input.setStyleSheet("""
-            QSpinBox {
-                background-color: #FFFFFF;
-                color: #212121;
-                border-radius: 4px;
-                padding: 6px;
-                border: 1px solid #D1D0D0;
-            }
-            QSpinBox:focus {
-                border: 1px solid #ce305e;
-                background-color: #fef2f4;
-            }
-        """)
-        self.max_age_input.hide()
-        age_range_layout.addWidget(self.max_age_input)
+        self.secondary_max_age_input = QSpinBox(self)
+        self.secondary_max_age_input.setMinimum(0)
+        self.secondary_max_age_input.setMaximum(150)
+        self.secondary_max_age_input.setValue(150)
+        self.secondary_max_age_input.setPrefix("Max: ")
+        self.secondary_max_age_input.setSuffix(" years")
+        self.secondary_max_age_input.setStyleSheet(self.SPINBOX_STYLE)
+        self.secondary_max_age_input.hide()
+        secondary_age_range_layout.addWidget(self.secondary_max_age_input)
 
-        filter_container.addLayout(age_range_layout)
-        left_layout.addLayout(filter_container)
+        left_layout.addLayout(secondary_age_range_layout)
 
-        # Resident filters (for birth and death records)
-        resident_label = QLabel("Resident Filters (Optional):", self)
-        resident_label.setStyleSheet("""
-            QLabel {
-                font-size: 12px;
-                color: #212121;
-                margin-top: 10px;
-            }
-        """)
-        left_layout.addWidget(resident_label)
-
-        # Maasin resident checkbox
-        self.maasin_resident_cb = QCheckBox("Maasin Resident", self)
-        self.maasin_resident_cb.setStyleSheet("""
-            QCheckBox {
-                font-size: 11px;
-                color: #212121;
-                margin-left: 5px;
-            }
-            QCheckBox::indicator {
-                width: 15px;
-                height: 15px;
-            }
-        """)
-        left_layout.addWidget(self.maasin_resident_cb)
-
-        # Soley te resident checkbox
-        self.soleyte_resident_cb = QCheckBox("Soleyte Resident", self)
-        self.soleyte_resident_cb.setStyleSheet("""
-            QCheckBox {
-                font-size: 11px;
-                color: #212121;
-                margin-left: 5px;
-            }
-            QCheckBox::indicator {
-                width: 15px;
-                height: 15px;
-            }
-        """)
-        left_layout.addWidget(self.soleyte_resident_cb)
-
-        # Leyte resident checkbox
-        self.leyte_resident_cb = QCheckBox("Leyte Resident", self)
-        self.leyte_resident_cb.setStyleSheet("""
-            QCheckBox {
-                font-size: 11px;
-                color: #212121;
-                margin-left: 5px;
-            }
-            QCheckBox::indicator {
-                width: 15px;
-                height: 15px;
-            }
-        """)
-        left_layout.addWidget(self.leyte_resident_cb)
-
-        # Connect record type change to show/hide resident filters
-        self.record_type_dropdown.currentIndexChanged.connect(self.update_resident_filters_visibility)
-
+        # Buttons
         generate_btn = QPushButton("Generate Statistics", self)
         generate_btn.clicked.connect(self.generate_statistics)
         generate_btn.setStyleSheet(button_style)
@@ -380,7 +407,7 @@ class StatisticsWindow(QWidget):
         left_layout.addWidget(export_pdf_btn)
 
         # Result display area
-        result_label = QLabel("Total Count:", self)
+        result_label = QLabel("Result:", self)
         result_label.setStyleSheet("""
             QLabel {
                 font-size: 14px;
@@ -391,20 +418,21 @@ class StatisticsWindow(QWidget):
         """)
         left_layout.addWidget(result_label)
 
-        self.result_display = QLabel("0", self)
+        self.result_display = QLabel("Ready", self)
         self.result_display.setStyleSheet("""
             QLabel {
-                font-size: 32px;
-                font-weight: bold;
-                color: #ce305e;
-                padding: 20px;
-                border: 2px solid #ce305e;
-                border-radius: 8px;
-                background-color: #fef2f4;
-                min-height: 80px;
+                font-size: 12px;
+                color: #212121;
+                padding: 15px;
+                border: 1px solid #D1D0D0;
+                border-radius: 4px;
+                background-color: #FAFAFA;
+                min-height: 60px;
+                max-height: 200px;
             }
         """)
-        self.result_display.setAlignment(Qt.AlignCenter)
+        self.result_display.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        self.result_display.setWordWrap(True)
         left_layout.addWidget(self.result_display)
 
         # Add spacer to push content to top
@@ -413,10 +441,120 @@ class StatisticsWindow(QWidget):
         main_layout.addLayout(left_layout)
         self.setLayout(main_layout)
 
-        self.update_keys_for_record_type()  # Set initial keys
-        self.update_filter_input_state()  # Set initial filter input state
-        self.update_resident_filters_visibility()  # Set initial resident filters visibility
-        self.update_date_range_visibility()  # Set initial date range visibility
+        # Initialize dropdowns
+        self.on_record_type_changed()
+        self.on_output_mode_changed()
+        self.update_date_range_visibility()
+
+    def on_record_type_changed(self):
+        """Handle record type selection change."""
+        self.on_output_mode_changed()  # Re-populate primary key based on new record type
+
+    def on_output_mode_changed(self):
+        """Handle output mode selection change."""
+        record_type = self.record_type_dropdown.currentText()
+        output_mode = self.output_mode_dropdown.currentText()
+        
+        # Populate primary key dropdown based on output mode and record type
+        self.primary_key_dropdown.blockSignals(True)
+        self.primary_key_dropdown.clear()
+        
+        if output_mode == "Breakdown":
+            keys = self.BREAKDOWN_KEYS.get(record_type, [])
+        else:  # Total Count
+            keys = self.TOTAL_COUNT_KEYS.get(record_type, [])
+        
+        self.primary_key_dropdown.addItems(keys)
+        self.primary_key_dropdown.blockSignals(False)
+        
+        # Update secondary filter dropdown based on record type
+        self.update_secondary_filter_keys()
+        
+        # Update visibility of primary key value inputs
+        self.on_primary_key_changed()
+
+    def on_primary_key_changed(self):
+        """Handle primary key selection change."""
+        primary_key = self.primary_key_dropdown.currentText()
+        output_mode = self.output_mode_dropdown.currentText()
+        
+        # Determine if we should show value input based on output mode
+        is_total_count_mode = (output_mode == "Total Count")
+        is_age_field = "age" in primary_key.lower()
+        is_all_key = (primary_key == "All")
+        
+        # Hide value inputs in Breakdown mode or if "All" is selected
+        if not is_total_count_mode or is_all_key:
+            self.primary_key_value_label.hide()
+            self.primary_key_value_input.hide()
+            self.primary_age_range_label.hide()
+            self.primary_min_age_input.hide()
+            self.primary_max_age_input.hide()
+        else:
+            # Show appropriate input for Total Count mode
+            self.primary_key_value_label.show()
+            if is_age_field:
+                self.primary_key_value_input.hide()
+                self.primary_age_range_label.show()
+                self.primary_min_age_input.show()
+                self.primary_max_age_input.show()
+            else:
+                self.primary_key_value_input.show()
+                self.primary_age_range_label.hide()
+                self.primary_min_age_input.hide()
+                self.primary_max_age_input.hide()
+        
+        # Update secondary filter dropdown to disable the selected primary key
+        self.update_secondary_filter_keys()
+
+    def on_secondary_filter_key_changed(self):
+        """Handle secondary filter key selection change."""
+        secondary_key = self.secondary_filter_key_dropdown.currentText()
+        is_age_field = "age" in secondary_key.lower()
+        is_no_filter = (secondary_key == "None")
+        
+        # Show/hide secondary filter value inputs based on key type
+        if is_no_filter:
+            self.secondary_filter_value_label.hide()
+            self.secondary_filter_value_input.hide()
+            self.secondary_age_range_label.hide()
+            self.secondary_min_age_input.hide()
+            self.secondary_max_age_input.hide()
+        else:
+            if is_age_field:
+                self.secondary_filter_value_input.hide()
+                self.secondary_age_range_label.show()
+                self.secondary_min_age_input.show()
+                self.secondary_max_age_input.show()
+            else:
+                self.secondary_filter_value_input.show()
+                self.secondary_age_range_label.hide()
+                self.secondary_min_age_input.hide()
+                self.secondary_max_age_input.hide()
+            self.secondary_filter_value_label.show()
+
+    def update_secondary_filter_keys(self):
+        """Update secondary filter dropdown, excluding the primary key."""
+        record_type = self.record_type_dropdown.currentText()
+        primary_key = self.primary_key_dropdown.currentText()
+        
+        # Get available secondary filter keys
+        all_secondary_keys = self.SECONDARY_FILTER_KEYS.get(record_type, [])
+        
+        # Filter out the primary key if it's not "All"
+        available_keys = [k for k in all_secondary_keys if k != primary_key]
+        
+        self.secondary_filter_key_dropdown.blockSignals(True)
+        current_selection = self.secondary_filter_key_dropdown.currentText()
+        self.secondary_filter_key_dropdown.clear()
+        self.secondary_filter_key_dropdown.addItems(available_keys)
+        
+        # Try to restore previous selection if it's still available
+        if current_selection in available_keys:
+            self.secondary_filter_key_dropdown.setCurrentText(current_selection)
+        
+        self.secondary_filter_key_dropdown.blockSignals(False)
+        self.on_secondary_filter_key_changed()
 
     def update_date_range_visibility(self):
         """Show/hide date range inputs based on selected date range type."""
@@ -438,95 +576,7 @@ class StatisticsWindow(QWidget):
             self.reg_date_label.show()
             self.reg_start_date_input.show()
             self.reg_end_date_input.show()
-        
-        # Update the date labels to reflect current record type
-        self.update_date_labels()
     
-    def update_date_labels(self):
-        """Update date labels based on record type and date range type selection."""
-        record_type = self.record_type_dropdown.currentText()
-        date_range_type = self.date_range_type_dropdown.currentText()
-        
-        # Map record type to date field names
-        date_field_map = {
-            "Live Birth": "Birth",
-            "Death": "Death",
-            "Marriage": "Marriage"
-        }
-        date_field = date_field_map.get(record_type, "Event")
-        
-        if date_range_type == "Date of Event":
-            self.date_label.setText(f"Date of {date_field} Range:")
-        else:  # Date of Registration
-            self.reg_date_label.setText("Registration Date Range:")
-
-    def update_resident_filters_visibility(self):
-        """Show/hide resident filters based on record type."""
-        record_type = self.record_type_dropdown.currentText()
-        # Show resident filters for birth and death records, hide for marriage
-        show_residents = record_type in ["Live Birth", "Death"]
-        
-        self.maasin_resident_cb.setVisible(show_residents)
-        self.soleyte_resident_cb.setVisible(show_residents)
-        self.leyte_resident_cb.setVisible(show_residents)
-        
-        # Also hide/show the resident label
-        # Find the resident label in the layout
-        for i in range(self.layout().itemAt(0).layout().count()):
-            item = self.layout().itemAt(0).layout().itemAt(i)
-            if item.widget() and hasattr(item.widget(), 'text') and item.widget().text() == "Resident Filters (Optional):":
-                item.widget().setVisible(show_residents)
-                break
-
-    def update_filter_input_state(self):
-        """Enable or disable filter input based on selected key."""
-        selected_key = self.key_dropdown.currentText().strip()
-        selected_key_lower = selected_key.lower()
-        
-        if selected_key == "Late Registration":
-            # Hide text filter, show only age range (if applicable)
-            self.filter_value_input.hide()
-            self.filter_label.hide()
-            # For late registration, let the date range type dropdown control visibility
-            # The date_range_visibility is already managed by the date_range_type_dropdown
-            self.age_range_label.hide()
-            self.min_age_input.hide()
-            self.max_age_input.hide()
-        elif selected_key_lower in ["age", "husband age", "wife age"]:
-            # Show age range inputs, hide text input
-            self.filter_value_input.hide()
-            self.filter_label.hide()
-            self.age_range_label.show()
-            self.min_age_input.show()
-            self.max_age_input.show()
-        else:
-            # Show text input, hide age range inputs
-            self.filter_value_input.show()
-            self.filter_label.show()
-            # The date range visibility is managed by the date_range_type_dropdown
-            self.age_range_label.hide()
-            self.min_age_input.hide()
-            self.max_age_input.hide()
-
-    def update_keys_for_record_type(self):
-        record_type = self.record_type_dropdown.currentText()
-        self.key_dropdown.clear()
-        if record_type == "Live Birth":
-            self.key_dropdown.addItems([
-                "Name", "Sex", "Place of Birth", "Name of Mother", "Name of Father", "Nationality of Mother", "Nationality of Father", "Attendant", "Type of Birth", "Late Registration" 
-            ])
-        elif record_type == "Death":
-            self.key_dropdown.addItems([
-                "Name", "Sex", "Age", "Civil Status", "Nationality", "Place of Death", "Cause of Death", "Corpse Disposal", "Late Registration"
-            ])
-        elif record_type == "Marriage":
-            self.key_dropdown.addItems([
-                "Husband Name", "Husband Age", "Husband Civil Status", "Husband Nationality", "Wife Name", "Wife Age", "Wife Civil Status", "Wife Nationality", "Place of Marriage", "Ceremony Type", "Late Registration"
-            ])
-        
-        # Update date labels based on record type change
-        self.update_date_labels()
-
     def _get_table_and_date_field(self, record_type):
         """Get database table and date field name for a record type."""
         table_map = {
@@ -536,513 +586,403 @@ class StatisticsWindow(QWidget):
         }
         return table_map.get(record_type, ("birth_index", "date_of_birth"))
 
-    def _build_query_with_filter(self, table, date_field, column, selected_key, record_type, start_date, end_date, filter_value=None, min_age=None, max_age=None, reg_start_date=None, reg_end_date=None, maasin_resident=None, soleyte_resident=None, leyte_resident=None, use_registration_date=False):
-        """Build SQL query with scoped filters.
-        
-        Args:
-            use_registration_date: If True, filters by registration date (date_of_reg) instead of event date
-        """
-        
-        # Determine which date field to use
-        if use_registration_date:
-            active_date_field = "date_of_reg"
-        else:
-            active_date_field = date_field
-        
-        # CASE 1: Late Registration (Focuses primarily on the Registration Date)
-        if selected_key == "Late Registration":
-            query_params = [start_date, end_date]
-            base_query = f'SELECT COUNT(*) FROM "{table}" WHERE DATE("{active_date_field}") BETWEEN %s::date AND %s::date'
-            base_query += f' AND "{column}" = TRUE'
-            return base_query, tuple(query_params)
-        
-        # CASE 2: Standard Key Filtering (Age, Name, etc.)
-        query_params = [start_date, end_date]
-        base_query = f'SELECT COUNT(*) FROM "{table}" WHERE DATE("{active_date_field}") BETWEEN %s::date AND %s::date'
-        
-        # Handle age range fields
-        selected_key_lower = selected_key.lower()
-        if selected_key_lower in ["age", "husband age", "wife age"]:
-            if min_age is not None and max_age is not None:
-                base_query += f' AND "{column}" BETWEEN %s AND %s'
-                query_params.extend([min_age, max_age])
-            return base_query, tuple(query_params)
-        
-        # Handle Text/Name Filters
-        if filter_value:
-            name_fields = {
-                "Live Birth": ["Name", "Name of Mother", "Name of Father"],
-                "Death": ["Name"],
-                "Marriage": ["Husband Name", "Wife Name"]
-            }
-            
-            if record_type in name_fields and selected_key in name_fields[record_type]:
-                base_query += f' AND "{column}" ~* %s'
-                query_params.append(rf'\y{filter_value}\y') 
-            elif selected_key in ["Sex", "Type of Birth", "Civil Status"]:
-                base_query += f' AND "{column}" ILIKE %s'
-                query_params.append(filter_value)
-            else:
-                base_query += f' AND "{column}" ILIKE %s AND "{column}" IS NOT NULL'
-                query_params.append(f'%{filter_value}%')
-        
-        # Apply resident filters (only for birth and death records)
-        if record_type in ["Live Birth", "Death"]:
-            if maasin_resident is True:
-                base_query += f' AND "maasin_resident" = TRUE'
-            if soleyte_resident is True:
-                base_query += f' AND "soleyte_resident" = TRUE'
-            if leyte_resident is True:
-                base_query += f' AND "leyte_resident" = TRUE'
-                
-        return base_query, tuple(query_params)
-
     def generate_statistics(self):
+        """Generate statistics based on output mode (Breakdown or Total Count)."""
         record_type = self.record_type_dropdown.currentText()
-        selected_key = self.key_dropdown.currentText().strip()
-        filter_value = self.filter_value_input.text().strip() if self.filter_value_input.isVisible() else None
-        
-        # Get age range values if age field is selected
-        min_age = self.min_age_input.value() if "age" in selected_key.lower() else None
-        max_age = self.max_age_input.value() if "age" in selected_key.lower() else None
-        
-        # Get resident filter values (only for birth and death records)
-        maasin_resident = self.maasin_resident_cb.isChecked() if self.maasin_resident_cb.isVisible() else None
-        soleyte_resident = self.soleyte_resident_cb.isChecked() if self.soleyte_resident_cb.isVisible() else None
-        leyte_resident = self.leyte_resident_cb.isChecked() if self.leyte_resident_cb.isVisible() else None
-        
-        # Get date range based on user selection
+        output_mode = self.output_mode_dropdown.currentText()
+        primary_key = self.primary_key_dropdown.currentText()
         date_range_type = self.date_range_type_dropdown.currentText()
+        
+        # Get date range (event vs registration)
         if date_range_type == "Date of Event":
             start_date = self.start_date_input.date().toString("yyyy-MM-dd")
             end_date = self.end_date_input.date().toString("yyyy-MM-dd")
+            # registration date range not active
             reg_start_date = None
             reg_end_date = None
         else:  # Date of Registration
             start_date = self.reg_start_date_input.date().toString("yyyy-MM-dd")
             end_date = self.reg_end_date_input.date().toString("yyyy-MM-dd")
-            reg_start_date = start_date
-            reg_end_date = end_date
-
+            # when Date of Registration is selected, make registration range available
+            reg_start_date = self.reg_start_date_input.date().toString("yyyy-MM-dd")
+            reg_end_date = self.reg_end_date_input.date().toString("yyyy-MM-dd")
+        
+        # Get primary key value (for Total Count mode)
+        primary_key_value = None
+        primary_min_age = None
+        primary_max_age = None
+        if output_mode == "Total Count" and primary_key != "All":
+            if "age" in primary_key.lower():
+                primary_min_age = self.primary_min_age_input.value()
+                primary_max_age = self.primary_max_age_input.value()
+            else:
+                primary_key_value = self.primary_key_value_input.text().strip()
+        
+        # Get secondary filter
+        secondary_filter_key = self.secondary_filter_key_dropdown.currentText()
+        secondary_filter_value = None
+        secondary_min_age = None
+        secondary_max_age = None
+        
+        if secondary_filter_key != "None":
+            if "age" in secondary_filter_key.lower():
+                secondary_min_age = self.secondary_min_age_input.value()
+                secondary_max_age = self.secondary_max_age_input.value()
+            else:
+                secondary_filter_value = self.secondary_filter_value_input.text().strip()
+        
         conn = self.create_connection()
         try:
-            if not selected_key:
-                AuditLogger.log_action(
-                    conn,
-                    self.current_user,
-                    "STATISTICS_GENERATION_FAILED",
-                    {"reason": "no_key_selected"}
-                )
-                conn.commit()
-                QMessageBox.warning(self, "Error", "Please select a valid key!")
-                return
-
-            AuditLogger.log_action(
-                conn,
-                self.current_user,
-                "STATISTICS_GENERATION_STARTED",
-                {
-                    "record_type": record_type,
-                    "key": selected_key,
-                    "filter_value": filter_value if filter_value else None,
-                    "min_age": min_age,
-                    "max_age": max_age,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "reg_start_date": reg_start_date,
-                    "reg_end_date": reg_end_date,
-                    "maasin_resident": maasin_resident,
-                    "soleyte_resident": soleyte_resident,
-                    "leyte_resident": leyte_resident
-                }
-            )
-            conn.commit()
-
             cursor = conn.cursor()
-
-            # Get table and date field - validated against known values
             table, date_field = self._get_table_and_date_field(record_type)
-
-            # Get column name - validated through KEY_COLUMN_MAP
-            column = self.KEY_COLUMN_MAP.get(selected_key)
-            if not column:
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Warning)
-                box.setWindowTitle("Statistics Error")
-                box.setText(f"No column mapping for key: {selected_key}")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
-                return
-
-            # Validate table and column names to prevent SQL injection
-            # Only allow alphanumeric and underscore characters
-            if not all(c.isalnum() or c == '_' for c in table):
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Critical)
-                box.setWindowTitle("Security Error")
-                box.setText("Invalid table name")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
-                return
-            if not all(c.isalnum() or c == '_' for c in column):
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Critical)
-                box.setWindowTitle("Security Error")
-                box.setText("Invalid column name")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
-                return
+            
+            # Validate date field
             if not all(c.isalnum() or c == '_' for c in date_field):
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Critical)
-                box.setWindowTitle("Security Error")
-                box.setText("Invalid date field name")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
+                QMessageBox.critical(self, "Security Error", "Invalid date field")
                 return
-
-            try:
-                # Build query with optional filter value or age range
-                # Determine if we should use registration date based on date_range_type
-                use_registration_date = (date_range_type == "Date of Registration")
-                try:
-                    query, query_params = self._build_query_with_filter(
-                        table, date_field, column, selected_key, record_type, start_date, end_date, 
-                        filter_value, min_age, max_age, reg_start_date, reg_end_date,
-                        maasin_resident, soleyte_resident, leyte_resident, use_registration_date
-                    )
-                except ValueError as ve:
-                    box = QMessageBox(self)
-                    box.setIcon(QMessageBox.Warning)
-                    box.setWindowTitle("Invalid Input")
-                    box.setText(str(ve))
-                    box.setStandardButtons(QMessageBox.Ok)
-                    box.setStyleSheet(message_box_style)
-                    box.exec()
-                    return
-
-                cursor.execute(query, query_params)
-                result = cursor.fetchone()
-                total_count = result[0] if result else 0
-
-                if total_count == 0:
-                    # Build filter info message
-                    if selected_key in ["age", "husband age", "wife age"] and min_age is not None and max_age is not None:
-                        filter_info = f" in age range {min_age}-{max_age}"
-                    elif filter_value:
-                        filter_info = f" matching '{filter_value}'"
-                    else:
-                        filter_info = ""
-                    
+            
+            # Determine which date field to use for filtering
+            use_registration_date = (date_range_type == "Date of Registration")
+            active_date_field = "date_of_reg" if use_registration_date else date_field
+            
+            if output_mode == "Breakdown":
+                # Breakdown mode: show distinct values and their counts
+                results = self._generate_breakdown(
+                    cursor, table, active_date_field, primary_key,
+                    secondary_filter_key, record_type,
+                    start_date, end_date, reg_start_date, reg_end_date,
+                    secondary_filter_value, secondary_min_age, secondary_max_age
+                )
+                
+                if results:
                     AuditLogger.log_action(
-                        conn,
-                        self.current_user,
-                        "STATISTICS_NO_DATA",
-                        {
-                            "record_type": record_type,
-                            "key": selected_key,
-                            "filter_value": filter_value if filter_value else None,
-                            "min_age": min_age,
-                            "max_age": max_age,
-                            "start_date": start_date,
-                            "end_date": end_date,
-                            "reg_start_date": reg_start_date,
-                            "reg_end_date": reg_end_date,
-                            "maasin_resident": maasin_resident,
-                            "soleyte_resident": soleyte_resident,
-                            "leyte_resident": leyte_resident
-                        }
+                        conn, self.current_user, "STATISTICS_GENERATED",
+                        {"mode": "breakdown", "record_type": record_type, "key": primary_key,
+                         "result_count": len(results), "start_date": start_date, "end_date": end_date}
                     )
                     conn.commit()
-                    
-                    box = QMessageBox(self)
-                    box.setIcon(QMessageBox.Information)
-                    box.setWindowTitle("No Data")
-                    box.setText(f"No records found for '{selected_key}'{filter_info} in the selected date range.")
-                    box.setStandardButtons(QMessageBox.Ok)
-                    box.setStyleSheet(message_box_style)
-                    box.exec()
-
-                    self.result_display.setText("0")
+                    self._display_breakdown_results(results, primary_key)
                 else:
                     AuditLogger.log_action(
-                        conn,
-                        self.current_user,
-                        "STATISTICS_GENERATED",
-                        {
-                            "record_type": record_type,
-                            "key": selected_key,
-                            "filter_value": filter_value if filter_value else None,
-                            "min_age": min_age,
-                            "max_age": max_age,
-                            "record_count": total_count,
-                            "start_date": start_date,
-                            "end_date": end_date,
-                            "reg_start_date": reg_start_date,
-                            "reg_end_date": reg_end_date
-                        }
+                        conn, self.current_user, "STATISTICS_NO_DATA",
+                        {"mode": "breakdown", "record_type": record_type, "key": primary_key}
                     )
                     conn.commit()
-                    # Update display with total count
-                    self.result_display.setText(str(total_count))
-
-            except psycopg2.Error as e:
-                AuditLogger.log_action(
-                    conn,
-                    self.current_user,
-                    "DATABASE_ERROR",
-                    {
-                        "operation": "generate_statistics",
-                        "error": str(e),
-                        "key": selected_key,
-                        "filter_value": filter_value if filter_value else None,
-                        "min_age": min_age,
-                        "max_age": max_age,
-                        "reg_start_date": reg_start_date,
-                        "reg_end_date": reg_end_date
-                    }
+                    self.result_display.setText("No data found for the selected criteria.")
+            else:  # Total Count mode
+                # Total count mode: count records based on filters
+                total_count = self._generate_total_count(
+                    cursor, table, active_date_field, primary_key,
+                    secondary_filter_key, record_type,
+                    start_date, end_date, reg_start_date, reg_end_date,
+                    primary_key_value, primary_min_age, primary_max_age,
+                    secondary_filter_value, secondary_min_age, secondary_max_age
                 )
-                conn.commit()
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Critical)
-                box.setWindowTitle("Database Error")
-                box.setText(f"An error occurred: {str(e)}")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
-                self.result_display.setText("0")
-
+                
+                if total_count >= 0:
+                    AuditLogger.log_action(
+                        conn, self.current_user, "STATISTICS_GENERATED",
+                        {"mode": "total_count", "record_type": record_type, "key": primary_key,
+                         "count": total_count, "start_date": start_date, "end_date": end_date}
+                    )
+                    conn.commit()
+                    self._display_total_count_result(primary_key, primary_key_value, total_count, primary_min_age, primary_max_age)
+                else:
+                    self.result_display.setText("Error generating statistics.")
+        
+        except psycopg2.Error as e:
+            AuditLogger.log_action(
+                conn, self.current_user, "DATABASE_ERROR",
+                {"operation": "generate_statistics", "error": str(e)}
+            )
+            conn.commit()
+            QMessageBox.critical(self, "Database Error", f"An error occurred: {str(e)}")
+            self.result_display.setText("Error")
+        
         finally:
             self.closeConnection()
 
+    def _generate_breakdown(self, cursor, table, date_field, primary_key, secondary_filter_key, 
+                           record_type, start_date, end_date, reg_start_date=None, reg_end_date=None,
+                           secondary_filter_value=None, secondary_min_age=None, secondary_max_age=None):
+        """Generate breakdown statistics for a key."""
+        try:
+            if primary_key == "All":
+                # Total count for the record type
+                base_where = f'DATE("{date_field}") BETWEEN %s::date AND %s::date'
+                params = [start_date, end_date]
+                query = f'SELECT COUNT(*) as count FROM "{table}" WHERE {base_where}'
+            else:
+                # Breakdown by primary key
+                primary_column = self.KEY_COLUMN_MAP.get(primary_key)
+                if not primary_column or not all(c.isalnum() or c == '_' for c in primary_column):
+                    return None
+                
+                base_where = f'DATE("{date_field}") BETWEEN %s::date AND %s::date'
+                params = [start_date, end_date]
+                
+                # Add primary key filter (only for non-null values)
+                base_where += f' AND "{primary_column}" IS NOT NULL'
+                query = f'SELECT "{primary_column}", COUNT(*) as count FROM "{table}" WHERE {base_where}'
+            
+            # Add secondary filter if present
+            if secondary_filter_key != "None":
+                secondary_column = self.KEY_COLUMN_MAP.get(secondary_filter_key)
+                if secondary_column and all(c.isalnum() or c == '_' for c in secondary_column):
+                    if "age" in secondary_filter_key.lower():
+                        query = query.replace("WHERE", f'WHERE "{secondary_column}" BETWEEN %s AND %s AND')
+                        params.insert(-len([start_date, end_date]), secondary_min_age)
+                        params.insert(-len([start_date, end_date]) + 1, secondary_max_age)
+                    # Special handling for composite residence filters
+                    elif secondary_filter_key == "SoLeyte Residents (Excl. Maasin)":
+                        query = query.replace("WHERE", f'WHERE "soleyte_resident" = TRUE AND "maasin_resident" = FALSE AND')
+                    elif secondary_filter_key == "Residents outside Leyte":
+                        query = query.replace("WHERE", f'WHERE "maasin_resident" = FALSE AND "soleyte_resident" = FALSE AND "leyte_resident" = FALSE AND')
+                    # Boolean column handling (Late Registration, resident filters)
+                    elif secondary_filter_key == "Late Registration" or "resident" in secondary_filter_key.lower():
+                        query = query.replace("WHERE", f'WHERE "{secondary_column}" = TRUE AND')
+                    else:
+                        # Use regex whole-word match for name fields, otherwise use ILIKE
+                        if "name" in secondary_filter_key.lower():
+                            pattern = '\\y' + re.escape(secondary_filter_value) + '\\y'
+                            query = query.replace("WHERE", f'WHERE "{secondary_column}" ~* %s AND')
+                            params.insert(-len([start_date, end_date]), pattern)
+                        else:
+                            query = query.replace("WHERE", f'WHERE "{secondary_column}" ILIKE %s AND')
+                            params.insert(-len([start_date, end_date]), f'%{secondary_filter_value}%')
+            
+            # Add GROUP BY for non-All case
+            if primary_key != "All":
+                primary_column = self.KEY_COLUMN_MAP.get(primary_key)
+                query += f' GROUP BY "{primary_column}" ORDER BY count DESC'
+            
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+            
+            if primary_key == "All":
+                # Convert single total to list format
+                return [(None, results[0][0])] if results else []
+            return results
+        
+        except Exception as e:
+            print(f"Error in _generate_breakdown: {e}")
+            return None
+
+    def _generate_total_count(self, cursor, table, date_field, primary_key, secondary_filter_key,
+                             record_type, start_date, end_date, reg_start_date=None, reg_end_date=None,
+                             primary_key_value=None, primary_min_age=None, primary_max_age=None,
+                             secondary_filter_value=None, secondary_min_age=None, secondary_max_age=None):
+        """Generate total count statistics with legacy query rules."""
+        try:
+            # Standard filtering
+            base_where = f'DATE("{date_field}") BETWEEN %s::date AND %s::date'
+            params = [start_date, end_date]
+
+            # Add primary key filter if not "All"
+            if primary_key != "All":
+                primary_column = self.KEY_COLUMN_MAP.get(primary_key)
+                if not primary_column or not all(c.isalnum() or c == '_' for c in primary_column):
+                    return -1
+
+                # Age range handling
+                if "age" in primary_key.lower():
+                    base_where += f' AND "{primary_column}" BETWEEN %s AND %s'
+                    params.extend([primary_min_age, primary_max_age])
+                # Special handling for mixed residence filters
+                elif primary_key == "SoLeyte Residents (Excl. Maasin)":
+                    base_where += f' AND "soleyte_resident" = TRUE AND "maasin_resident" = FALSE'
+                elif primary_key == "Residents outside Leyte":
+                    base_where += f' AND "maasin_resident" = FALSE AND "soleyte_resident" = FALSE AND "leyte_resident" = FALSE'
+                # Boolean column handling (Late Registration, resident filters)
+                elif primary_key == "Late Registration" or "resident" in primary_key.lower():
+                    base_where += f' AND "{primary_column}" = TRUE'
+                else:
+                    # Handle name fields and specific text fields per legacy rules
+                    name_fields = {
+                        "Live Birth": ["Name", "Name of Mother", "Name of Father"],
+                        "Death": ["Name"],
+                        "Marriage": ["Husband Name", "Wife Name"]
+                    }
+                    if record_type in name_fields and primary_key in name_fields[record_type]:
+                        pattern = '\\y' + re.escape(primary_key_value) + '\\y'
+                        base_where += f' AND "{primary_column}" ~* %s'
+                        params.append(pattern)
+                    elif primary_key in ["Sex", "Type of Birth", "Civil Status"]:
+                        base_where += f' AND "{primary_column}" ILIKE %s'
+                        params.append(primary_key_value)
+                    else:
+                        base_where += f' AND "{primary_column}" ILIKE %s AND "{primary_column}" IS NOT NULL'
+                        params.append(f'%{primary_key_value}%')
+
+            # Add secondary filter if present
+            if secondary_filter_key != "None":
+                secondary_column = self.KEY_COLUMN_MAP.get(secondary_filter_key)
+                if secondary_column and all(c.isalnum() or c == '_' for c in secondary_column):
+                    if "age" in secondary_filter_key.lower():
+                        base_where += f' AND "{secondary_column}" BETWEEN %s AND %s'
+                        params.extend([secondary_min_age, secondary_max_age])
+                    # Special handling for mixed residence filters
+                    elif secondary_filter_key == "SoLeyte Residents (Excl. Maasin)":
+                        base_where += f' AND "soleyte_resident" = TRUE AND "maasin_resident" = FALSE'
+                    elif secondary_filter_key == "Residents outside Leyte":
+                        base_where += f' AND "maasin_resident" = FALSE AND "soleyte_resident" = FALSE AND "leyte_resident" = FALSE'
+                    # Boolean column handling (Late Registration, resident filters)
+                    elif secondary_filter_key == "Late Registration" or "resident" in secondary_filter_key.lower():
+                        base_where += f' AND "{secondary_column}" = TRUE'
+                    else:
+                        # Name fields use regex whole-word match
+                        if "name" in secondary_filter_key.lower():
+                            pattern = '\\y' + re.escape(secondary_filter_value) + '\\y'
+                            base_where += f' AND "{secondary_column}" ~* %s'
+                            params.append(pattern)
+                        elif secondary_filter_key in ["Sex", "Type of Birth", "Civil Status"]:
+                            base_where += f' AND "{secondary_column}" ILIKE %s'
+                            params.append(secondary_filter_value)
+                        else:
+                            base_where += f' AND "{secondary_column}" ILIKE %s AND "{secondary_column}" IS NOT NULL'
+                            params.append(f'%{secondary_filter_value}%')
+
+            query = f'SELECT COUNT(*) FROM "{table}" WHERE {base_where}'
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+            return result[0] if result else 0
+
+        except Exception as e:
+            print(f"Error in _generate_total_count: {e}")
+            return -1
+
+    def _display_breakdown_results(self, results, key_name):
+        """Display breakdown results in the result display widget."""
+        if not results:
+            self.result_display.setText("No results")
+            return
+        
+        if key_name == "All":
+            # Just show total
+            total = results[0][1] if results else 0
+            text = f"Total {self.record_type_dropdown.currentText()} Records: {total}"
+        else:
+            # Show breakdown for other keys
+            lines = [f"Breakdown of {key_name}:"]
+            total = 0
+            for value, count in results:
+                # Late Registration is boolean, show as Yes/No
+                if key_name == "Late Registration":
+                    display_value = "Yes" if value is True else "No" if value is False else "N/A"
+                else:
+                    display_value = str(value) if value else "N/A"
+                lines.append(f"  {display_value}: {count}")
+                total += count
+            lines.append(f"\nTotal: {total}")
+            text = "\n".join(lines)
+        
+        self.result_display.setText(text)
+
+    def _display_total_count_result(self, key_name, key_value, total_count, min_age=None, max_age=None):
+        """Display total count result in the result display widget."""
+        if key_name == "All":
+            text = f"Total {self.record_type_dropdown.currentText()} Records: {total_count}"
+        elif "age" in key_name.lower():
+            # For age fields, display the age range
+            text = f"{key_name}: {min_age} - {max_age} years\nTotal Count: {total_count}"
+        else:
+            text = f"{key_name}: {key_value}\nTotal Count: {total_count}"
+        
+        self.result_display.setText(text)
+
 
     def export_pdf_report(self):
+        """Export the current statistics result to a PDF file."""
         record_type = self.record_type_dropdown.currentText()
-        selected_key = self.key_dropdown.currentText().strip()
-        filter_value = self.filter_value_input.text().strip() if self.filter_value_input.isVisible() else None
-        
-        # Get age range values if age field is selected
-        selected_key_lower = selected_key.lower()
-        min_age = None
-        max_age = None
-        if selected_key_lower in ["age", "husband age", "wife age"]:
-            min_age = self.min_age_input.value()
-            max_age = self.max_age_input.value()
-        
-        # Get resident filter values (only for birth and death records)
-        maasin_resident = self.maasin_resident_cb.isChecked() if self.maasin_resident_cb.isVisible() else None
-        soleyte_resident = self.soleyte_resident_cb.isChecked() if self.soleyte_resident_cb.isVisible() else None
-        leyte_resident = self.leyte_resident_cb.isChecked() if self.leyte_resident_cb.isVisible() else None
-        
-        # Get date range based on user selection
+        output_mode = self.output_mode_dropdown.currentText()
+        primary_key = self.primary_key_dropdown.currentText()
         date_range_type = self.date_range_type_dropdown.currentText()
-        if date_range_type == "Date of Event":
-            start_date = self.start_date_input.date().toString("yyyy-MM-dd")
-            end_date = self.end_date_input.date().toString("yyyy-MM-dd")
-            reg_start_date = None
-            reg_end_date = None
-        else:  # Date of Registration
-            start_date = self.reg_start_date_input.date().toString("yyyy-MM-dd")
-            end_date = self.reg_end_date_input.date().toString("yyyy-MM-dd")
-            reg_start_date = start_date
-            reg_end_date = end_date
-
-        conn = self.create_connection()
+        
+        # Get the current result text
+        result_text = self.result_display.text()
+        if "Ready" in result_text or result_text == "Error":
+            QMessageBox.information(self, "Export PDF", "Please generate statistics first before exporting.")
+            return
+        
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save PDF Report", "", "PDF Files (*.pdf)")
+        if not file_path:
+            return
+        
         try:
-            file_path, _ = QFileDialog.getSaveFileName(self, "Save PDF Report", "", "PDF Files (*.pdf)")
-            if not file_path:
-                return
+            # Generate simple text-based PDF report
+            c = pdf_canvas.Canvas(file_path, pagesize=letter)
+            width, height = letter
 
-            if not selected_key:
-                AuditLogger.log_action(
-                    conn,
-                    self.current_user,
-                    "PDF_EXPORT_FAILED",
-                    {"reason": "no_key_selected"}
-                )
-                conn.commit()
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Warning)
-                box.setWindowTitle("Error")
-                box.setText("Please select a valid key!")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
-                return
+            # Title
+            c.setFont("Helvetica-Bold", 20)
+            c.drawString(1 * inch, height - 1 * inch, "Statistics Report")
 
-            # Get table and date field
-            table, date_field = self._get_table_and_date_field(record_type)
+            # Report details
+            y_position = height - 1.5 * inch
+            c.setFont("Helvetica", 12)
+            c.drawString(1 * inch, y_position, f"Record Type: {record_type}")
+            y_position -= 0.3 * inch
+            c.drawString(1 * inch, y_position, f"Output Mode: {output_mode}")
+            y_position -= 0.3 * inch
+            c.drawString(1 * inch, y_position, f"Primary Key: {primary_key}")
+            y_position -= 0.3 * inch
+            c.drawString(1 * inch, y_position, f"Date Range Type: {date_range_type}")
+            y_position -= 0.5 * inch
 
-            # Get column name
-            column = self.KEY_COLUMN_MAP.get(selected_key)
-            if not column:
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Warning)
-                box.setWindowTitle("Error")
-                box.setText(f"No column mapping for key: {selected_key}")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
-                return
+            # Results
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(1 * inch, y_position, "Results:")
+            y_position -= 0.3 * inch
+            
+            c.setFont("Helvetica", 11)
+            # Draw the result text, wrapping if needed
+            for line in result_text.split('\n'):
+                if y_position < 0.5 * inch:
+                    c.showPage()
+                    y_position = height - 1 * inch
+                c.drawString(1 * inch, y_position, line)
+                y_position -= 0.25 * inch
 
-            # Validate table and column names to prevent SQL injection
-            if not all(c.isalnum() or c == '_' for c in table):
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Critical)
-                box.setWindowTitle("Security Error")
-                box.setText("Invalid table name")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
-                return
-            if not all(c.isalnum() or c == '_' for c in column):
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Critical)
-                box.setWindowTitle("Security Error")
-                box.setText("Invalid column name")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
-                return
-            if not all(c.isalnum() or c == '_' for c in date_field):
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Critical)
-                box.setWindowTitle("Security Error")
-                box.setText("Invalid date field name")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
-                return
+            # Footer
+            c.setFont("Helvetica", 10)
+            c.drawString(1 * inch, 0.5 * inch, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            c.drawString(1 * inch, 0.3 * inch, f"Generated by: {self.current_user}")
 
+            c.save()
+
+            conn = self.create_connection()
             try:
-                cursor = conn.cursor()
-                # Build query with optional filter value or age range
-                # Determine if we should use registration date based on date_range_type
-                use_registration_date = (date_range_type == "Date of Registration")
-                try:
-                    query, query_params = self._build_query_with_filter(
-                        table, date_field, column, selected_key, record_type, start_date, end_date, 
-                        filter_value, min_age, max_age, reg_start_date, reg_end_date,
-                        maasin_resident, soleyte_resident, leyte_resident, use_registration_date
-                    )
-                except ValueError as ve:
-                    box = QMessageBox(self)
-                    box.setIcon(QMessageBox.Warning)
-                    box.setWindowTitle("Invalid Input")
-                    box.setText(str(ve))
-                    box.setStandardButtons(QMessageBox.Ok)
-                    box.setStyleSheet(message_box_style)
-                    box.exec()
-                    return
-
-                cursor.execute(query, query_params)
-                result = cursor.fetchone()
-                total_count = result[0] if result else 0
-
-                # Generate simple text-based PDF report
-                c = pdf_canvas.Canvas(file_path, pagesize=letter)
-                width, height = letter
-
-                # Title
-                c.setFont("Helvetica-Bold", 20)
-                c.drawString(1 * inch, height - 1 * inch, "Statistics Report")
-
-                # Report details
-                y_position = height - 1.5 * inch
-                c.setFont("Helvetica", 12)
-                c.drawString(1 * inch, y_position, f"Record Type: {record_type}")
-                y_position -= 0.3 * inch
-                c.drawString(1 * inch, y_position, f"Selected Key: {selected_key}")
-                y_position -= 0.3 * inch
-                if selected_key_lower in ["age", "husband age", "wife age"] and min_age is not None and max_age is not None:
-                    c.drawString(1 * inch, y_position, f"Age Range: {min_age} - {max_age} years")
-                    y_position -= 0.3 * inch
-                elif filter_value:
-                    c.drawString(1 * inch, y_position, f"Filter Value: {filter_value}")
-                    y_position -= 0.3 * inch
-                c.drawString(1 * inch, y_position, f"Event Date Range: {start_date} to {end_date}")
-                y_position -= 0.3 * inch
-                if reg_start_date and reg_end_date:
-                    c.drawString(1 * inch, y_position, f"Registration Date Range: {reg_start_date} to {reg_end_date}")
-                    y_position -= 0.3 * inch
-                y_position -= 0.5 * inch
-
-                # Total count
-                c.setFont("Helvetica-Bold", 16)
-                c.drawString(1 * inch, y_position, "Total Count:")
-                y_position -= 0.4 * inch
-                c.setFont("Helvetica-Bold", 24)
-                c.drawString(1 * inch, y_position, str(total_count))
-                y_position -= 0.5 * inch
-
-                # Footer
-                c.setFont("Helvetica", 10)
-                c.drawString(1 * inch, 0.5 * inch, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                c.drawString(1 * inch, 0.3 * inch, f"Generated by: {self.current_user}")
-
-                c.save()
-
                 AuditLogger.log_action(
-                    conn,
-                    self.current_user,
-                    "PDF_EXPORT_SUCCESS",
+                    conn, self.current_user, "PDF_EXPORT_SUCCESS",
                     {
                         "record_type": record_type,
-                        "key": selected_key,
-                        "filter_value": filter_value if filter_value else None,
-                        "min_age": min_age,
-                        "max_age": max_age,
-                        "file_path": file_path,
-                        "total_count": total_count,
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "reg_start_date": reg_start_date,
-                        "reg_end_date": reg_end_date
-                    }
-                )
-                conn.commit()
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Information)
-                box.setWindowTitle("Success")
-                box.setText(f"PDF report exported successfully!\nTotal Count: {total_count}")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
-                
-
-            except Exception as e:
-                AuditLogger.log_action(
-                    conn,
-                    self.current_user,
-                    "PDF_EXPORT_ERROR",
-                    {
-                        "error": str(e),
-                        "record_type": record_type,
-                        "key": selected_key,
-                        "filter_value": filter_value if filter_value else None,
-                        "min_age": min_age,
-                        "max_age": max_age,
-                        "reg_start_date": reg_start_date,
-                        "reg_end_date": reg_end_date,
+                        "output_mode": output_mode,
+                        "primary_key": primary_key,
                         "file_path": file_path
                     }
                 )
                 conn.commit()
-                box = QMessageBox(self)
-                box.setIcon(QMessageBox.Critical)
-                box.setWindowTitle("Export Error")
-                box.setText(f"Failed to export PDF: {str(e)}")
-                box.setStandardButtons(QMessageBox.Ok)
-                box.setStyleSheet(message_box_style)
-                box.exec()
+            finally:
+                self.closeConnection()
+            
+            QMessageBox.information(self, "Success", f"PDF report exported successfully!")
 
-        finally:
-            self.closeConnection()
-
+        except Exception as e:
+            conn = self.create_connection()
+            try:
+                AuditLogger.log_action(
+                    conn, self.current_user, "PDF_EXPORT_ERROR",
+                    {
+                        "error": str(e),
+                        "record_type": record_type,
+                        "output_mode": output_mode
+                    }
+                )
+                conn.commit()
+            finally:
+                self.closeConnection()
+            
+            QMessageBox.critical(self, "Export Error", f"Failed to export PDF: {str(e)}")
     def showEvent(self, event):
         super().showEvent(event)
         conn = self.create_connection()
