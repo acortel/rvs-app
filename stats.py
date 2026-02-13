@@ -142,6 +142,37 @@ class StatisticsWindow(QWidget):
         self.key_dropdown.currentIndexChanged.connect(self.update_filter_input_state)
         left_layout.addWidget(self.key_dropdown)
 
+        # Date range type selection dropdown
+        self.date_range_type_dropdown = QComboBox(self)
+        self.date_range_type_dropdown.addItems(["Date of Event", "Date of Registration"])
+        self.date_range_type_dropdown.setStyleSheet("""
+            QComboBox {
+                background-color: #FFFFFF;
+                color: #212121;
+                border-radius: 4px;
+                padding: 4px;
+                border: 1px solid #D1D0D0;
+            }
+            QComboBox::item {
+                background-color: #FFFFFF;
+                color: #212121;
+            }
+            QComboBox::item:hover {
+                background-color: #ce305e;
+                color: #FFFFFF;
+            }
+            QComboBox::item:selected {
+                background-color: #ce305e;
+                color: #FFFFFF;
+            }
+            QComboBox:focus {
+                border: 1px solid #ce305e;
+                background-color: #fef2f4;
+            }
+        """)
+        self.date_range_type_dropdown.currentIndexChanged.connect(self.update_date_range_visibility)
+        left_layout.addWidget(self.date_range_type_dropdown)
+
         # Date range label
         self.date_label = QLabel("Date of Event Range:", self)
         self.date_label.setStyleSheet("""
@@ -164,8 +195,8 @@ class StatisticsWindow(QWidget):
         self.end_date_input.setStyleSheet(date_picker_style)
         left_layout.addWidget(self.end_date_input)
 
-        # Registration date range (optional)
-        self.reg_date_label = QLabel("Registration Date Range (For Late Registrations):", self)
+        # Registration date range
+        self.reg_date_label = QLabel("Registration Date Range:", self)
         self.reg_date_label.setStyleSheet("""
             QLabel {
                 font-size: 12px;
@@ -176,15 +207,13 @@ class StatisticsWindow(QWidget):
         left_layout.addWidget(self.reg_date_label)
         self.reg_start_date_input = QDateEdit(self)
         self.reg_start_date_input.setCalendarPopup(True)
-        self.reg_start_date_input.setDate(QDate())
-        self.reg_start_date_input.setSpecialValueText("Not set")
+        self.reg_start_date_input.setDate(QDate.currentDate().addMonths(-1))
         self.reg_start_date_input.setStyleSheet(date_picker_style)
         left_layout.addWidget(self.reg_start_date_input)
 
         self.reg_end_date_input = QDateEdit(self)
         self.reg_end_date_input.setCalendarPopup(True)
-        self.reg_end_date_input.setDate(QDate())
-        self.reg_end_date_input.setSpecialValueText("Not set")
+        self.reg_end_date_input.setDate(QDate.currentDate())
         self.reg_end_date_input.setStyleSheet(date_picker_style)
         left_layout.addWidget(self.reg_end_date_input)
 
@@ -387,6 +416,49 @@ class StatisticsWindow(QWidget):
         self.update_keys_for_record_type()  # Set initial keys
         self.update_filter_input_state()  # Set initial filter input state
         self.update_resident_filters_visibility()  # Set initial resident filters visibility
+        self.update_date_range_visibility()  # Set initial date range visibility
+
+    def update_date_range_visibility(self):
+        """Show/hide date range inputs based on selected date range type."""
+        date_range_type = self.date_range_type_dropdown.currentText()
+        
+        if date_range_type == "Date of Event":
+            # Show event date range, hide registration date range
+            self.date_label.show()
+            self.start_date_input.show()
+            self.end_date_input.show()
+            self.reg_date_label.hide()
+            self.reg_start_date_input.hide()
+            self.reg_end_date_input.hide()
+        else:  # Date of Registration
+            # Hide event date range, show registration date range
+            self.date_label.hide()
+            self.start_date_input.hide()
+            self.end_date_input.hide()
+            self.reg_date_label.show()
+            self.reg_start_date_input.show()
+            self.reg_end_date_input.show()
+        
+        # Update the date labels to reflect current record type
+        self.update_date_labels()
+    
+    def update_date_labels(self):
+        """Update date labels based on record type and date range type selection."""
+        record_type = self.record_type_dropdown.currentText()
+        date_range_type = self.date_range_type_dropdown.currentText()
+        
+        # Map record type to date field names
+        date_field_map = {
+            "Live Birth": "Birth",
+            "Death": "Death",
+            "Marriage": "Marriage"
+        }
+        date_field = date_field_map.get(record_type, "Event")
+        
+        if date_range_type == "Date of Event":
+            self.date_label.setText(f"Date of {date_field} Range:")
+        else:  # Date of Registration
+            self.reg_date_label.setText("Registration Date Range:")
 
     def update_resident_filters_visibility(self):
         """Show/hide resident filters based on record type."""
@@ -412,22 +484,14 @@ class StatisticsWindow(QWidget):
         selected_key_lower = selected_key.lower()
         
         if selected_key == "Late Registration":
-            # Hide both text input and age range inputs
-            # self.filter_value_input.setEnabled(False)
+            # Hide text filter, show only age range (if applicable)
             self.filter_value_input.hide()
             self.filter_label.hide()
-            # self.filter_value_input.clear()
-            # self.filter_value_input.setPlaceholderText("Not applicable - counts only late registrations")
+            # For late registration, let the date range type dropdown control visibility
+            # The date_range_visibility is already managed by the date_range_type_dropdown
             self.age_range_label.hide()
             self.min_age_input.hide()
             self.max_age_input.hide()
-            self.start_date_input.hide()
-            self.end_date_input.hide()
-            self.date_label.hide()
-            # Show registration date range
-            self.reg_date_label.show()
-            self.reg_start_date_input.show()
-            self.reg_end_date_input.show()
         elif selected_key_lower in ["age", "husband age", "wife age"]:
             # Show age range inputs, hide text input
             self.filter_value_input.hide()
@@ -435,29 +499,14 @@ class StatisticsWindow(QWidget):
             self.age_range_label.show()
             self.min_age_input.show()
             self.max_age_input.show()
-            self.start_date_input.show()
-            self.end_date_input.show()
-            self.date_label.show()
-            # Hide registration date range
-            self.reg_date_label.hide()
-            self.reg_start_date_input.hide()
-            self.reg_end_date_input.hide()
         else:
             # Show text input, hide age range inputs
-            # self.filter_value_input.setEnabled(True)
             self.filter_value_input.show()
             self.filter_label.show()
-            self.start_date_input.show()
-            self.end_date_input.show()
-            self.date_label.show()
-            # self.filter_value_input.setPlaceholderText("Enter value to filter by (e.g., 'Ariel')")
+            # The date range visibility is managed by the date_range_type_dropdown
             self.age_range_label.hide()
             self.min_age_input.hide()
             self.max_age_input.hide()
-            # Hide registration date range
-            self.reg_date_label.hide()
-            self.reg_start_date_input.hide()
-            self.reg_end_date_input.hide()
 
     def update_keys_for_record_type(self):
         record_type = self.record_type_dropdown.currentText()
@@ -466,17 +515,17 @@ class StatisticsWindow(QWidget):
             self.key_dropdown.addItems([
                 "Name", "Sex", "Place of Birth", "Name of Mother", "Name of Father", "Nationality of Mother", "Nationality of Father", "Attendant", "Type of Birth", "Late Registration" 
             ])
-            self.date_label.setText("Date of Birth Range:")
         elif record_type == "Death":
             self.key_dropdown.addItems([
                 "Name", "Sex", "Age", "Civil Status", "Nationality", "Place of Death", "Cause of Death", "Corpse Disposal", "Late Registration"
             ])
-            self.date_label.setText("Date of Death Range:")
         elif record_type == "Marriage":
             self.key_dropdown.addItems([
                 "Husband Name", "Husband Age", "Husband Civil Status", "Husband Nationality", "Wife Name", "Wife Age", "Wife Civil Status", "Wife Nationality", "Place of Marriage", "Ceremony Type", "Late Registration"
             ])
-            self.date_label.setText("Date of Marriage Range:")
+        
+        # Update date labels based on record type change
+        self.update_date_labels()
 
     def _get_table_and_date_field(self, record_type):
         """Get database table and date field name for a record type."""
@@ -487,26 +536,29 @@ class StatisticsWindow(QWidget):
         }
         return table_map.get(record_type, ("birth_index", "date_of_birth"))
 
-    def _build_query_with_filter(self, table, date_field, column, selected_key, record_type, start_date, end_date, filter_value=None, min_age=None, max_age=None, reg_start_date=None, reg_end_date=None, maasin_resident=None, soleyte_resident=None, leyte_resident=None):
-        """Build SQL query with scoped filters."""
+    def _build_query_with_filter(self, table, date_field, column, selected_key, record_type, start_date, end_date, filter_value=None, min_age=None, max_age=None, reg_start_date=None, reg_end_date=None, maasin_resident=None, soleyte_resident=None, leyte_resident=None, use_registration_date=False):
+        """Build SQL query with scoped filters.
+        
+        Args:
+            use_registration_date: If True, filters by registration date (date_of_reg) instead of event date
+        """
+        
+        # Determine which date field to use
+        if use_registration_date:
+            active_date_field = "date_of_reg"
+        else:
+            active_date_field = date_field
         
         # CASE 1: Late Registration (Focuses primarily on the Registration Date)
         if selected_key == "Late Registration":
-            # Check if we are filtering by a specific Registration Period
-            if reg_start_date and reg_end_date:
-                query_params = [reg_start_date, reg_end_date]
-                base_query = f'SELECT COUNT(*) FROM "{table}" WHERE DATE("date_of_reg") BETWEEN %s::date AND %s::date'
-            else:
-                # Fallback to the primary date picker if registration dates aren't set
-                query_params = [start_date, end_date]
-                base_query = f'SELECT COUNT(*) FROM "{table}" WHERE DATE("{date_field}") BETWEEN %s::date AND %s::date'
-            
+            query_params = [start_date, end_date]
+            base_query = f'SELECT COUNT(*) FROM "{table}" WHERE DATE("{active_date_field}") BETWEEN %s::date AND %s::date'
             base_query += f' AND "{column}" = TRUE'
             return base_query, tuple(query_params)
         
         # CASE 2: Standard Key Filtering (Age, Name, etc.)
         query_params = [start_date, end_date]
-        base_query = f'SELECT COUNT(*) FROM "{table}" WHERE DATE("{date_field}") BETWEEN %s::date AND %s::date'
+        base_query = f'SELECT COUNT(*) FROM "{table}" WHERE DATE("{active_date_field}") BETWEEN %s::date AND %s::date'
         
         # Handle age range fields
         selected_key_lower = selected_key.lower()
@@ -548,8 +600,6 @@ class StatisticsWindow(QWidget):
     def generate_statistics(self):
         record_type = self.record_type_dropdown.currentText()
         selected_key = self.key_dropdown.currentText().strip()
-        start_date = self.start_date_input.date().toString("yyyy-MM-dd")
-        end_date = self.end_date_input.date().toString("yyyy-MM-dd")
         filter_value = self.filter_value_input.text().strip() if self.filter_value_input.isVisible() else None
         
         # Get age range values if age field is selected
@@ -561,15 +611,18 @@ class StatisticsWindow(QWidget):
         soleyte_resident = self.soleyte_resident_cb.isChecked() if self.soleyte_resident_cb.isVisible() else None
         leyte_resident = self.leyte_resident_cb.isChecked() if self.leyte_resident_cb.isVisible() else None
         
-        # Check if registration dates are actually set (not just default min values)
-        reg_start_date = None
-        reg_end_date = None
-        if selected_key == "Late Registration":
-            # If the date is not the minimum possible date, consider it "set"
-            if self.reg_start_date_input.date() != self.reg_start_date_input.minimumDate():
-                reg_start_date = self.reg_start_date_input.date().toString("yyyy-MM-dd")
-            if self.reg_end_date_input.date() != self.reg_end_date_input.minimumDate():
-                reg_end_date = self.reg_end_date_input.date().toString("yyyy-MM-dd")
+        # Get date range based on user selection
+        date_range_type = self.date_range_type_dropdown.currentText()
+        if date_range_type == "Date of Event":
+            start_date = self.start_date_input.date().toString("yyyy-MM-dd")
+            end_date = self.end_date_input.date().toString("yyyy-MM-dd")
+            reg_start_date = None
+            reg_end_date = None
+        else:  # Date of Registration
+            start_date = self.reg_start_date_input.date().toString("yyyy-MM-dd")
+            end_date = self.reg_end_date_input.date().toString("yyyy-MM-dd")
+            reg_start_date = start_date
+            reg_end_date = end_date
 
         conn = self.create_connection()
         try:
@@ -654,11 +707,13 @@ class StatisticsWindow(QWidget):
 
             try:
                 # Build query with optional filter value or age range
+                # Determine if we should use registration date based on date_range_type
+                use_registration_date = (date_range_type == "Date of Registration")
                 try:
                     query, query_params = self._build_query_with_filter(
                         table, date_field, column, selected_key, record_type, start_date, end_date, 
                         filter_value, min_age, max_age, reg_start_date, reg_end_date,
-                        maasin_resident, soleyte_resident, leyte_resident
+                        maasin_resident, soleyte_resident, leyte_resident, use_registration_date
                     )
                 except ValueError as ve:
                     box = QMessageBox(self)
@@ -768,8 +823,6 @@ class StatisticsWindow(QWidget):
     def export_pdf_report(self):
         record_type = self.record_type_dropdown.currentText()
         selected_key = self.key_dropdown.currentText().strip()
-        start_date = self.start_date_input.date().toString("yyyy-MM-dd")
-        end_date = self.end_date_input.date().toString("yyyy-MM-dd")
         filter_value = self.filter_value_input.text().strip() if self.filter_value_input.isVisible() else None
         
         # Get age range values if age field is selected
@@ -785,12 +838,18 @@ class StatisticsWindow(QWidget):
         soleyte_resident = self.soleyte_resident_cb.isChecked() if self.soleyte_resident_cb.isVisible() else None
         leyte_resident = self.leyte_resident_cb.isChecked() if self.leyte_resident_cb.isVisible() else None
         
-        # Get registration date range if provided
-        reg_start_date = None
-        reg_end_date = None
-        if self.reg_start_date_input.date().isValid() and self.reg_end_date_input.date().isValid():
-            reg_start_date = self.reg_start_date_input.date().toString("yyyy-MM-dd")
-            reg_end_date = self.reg_end_date_input.date().toString("yyyy-MM-dd")
+        # Get date range based on user selection
+        date_range_type = self.date_range_type_dropdown.currentText()
+        if date_range_type == "Date of Event":
+            start_date = self.start_date_input.date().toString("yyyy-MM-dd")
+            end_date = self.end_date_input.date().toString("yyyy-MM-dd")
+            reg_start_date = None
+            reg_end_date = None
+        else:  # Date of Registration
+            start_date = self.reg_start_date_input.date().toString("yyyy-MM-dd")
+            end_date = self.reg_end_date_input.date().toString("yyyy-MM-dd")
+            reg_start_date = start_date
+            reg_end_date = end_date
 
         conn = self.create_connection()
         try:
@@ -862,11 +921,13 @@ class StatisticsWindow(QWidget):
             try:
                 cursor = conn.cursor()
                 # Build query with optional filter value or age range
+                # Determine if we should use registration date based on date_range_type
+                use_registration_date = (date_range_type == "Date of Registration")
                 try:
                     query, query_params = self._build_query_with_filter(
                         table, date_field, column, selected_key, record_type, start_date, end_date, 
                         filter_value, min_age, max_age, reg_start_date, reg_end_date,
-                        maasin_resident, soleyte_resident, leyte_resident
+                        maasin_resident, soleyte_resident, leyte_resident, use_registration_date
                     )
                 except ValueError as ve:
                     box = QMessageBox(self)
