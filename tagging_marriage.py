@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QDate, QSize, QUrl, QSettings
-from PySide6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence
+from PySide6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence, QColor, QPalette
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from stylesheets import button_style, date_picker_style, combo_box_style, message_box_style
 from pdfviewer import PDFViewer
@@ -54,6 +54,9 @@ class MarriageTaggingWindow(QWidget):
             QWidget#form_area[saved="true"] {
                 background-color: #fce7f5; 
             }
+            QWidget#form_area[saved="true"] QLabel {
+                background-color: #fce7f5;
+            }
             QComboBox {
                 font-weight: bold;
             }
@@ -82,6 +85,12 @@ class MarriageTaggingWindow(QWidget):
             self.connection = psycopg2.connect(**POSTGRES_CONFIG)
             self.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return self.connection
+
+    def _create_label(self, text):
+        """Create a QLabel with AutoFillBackground enabled."""
+        label = QLabel(text)
+        label.setAutoFillBackground(True)
+        return label
 
     def closeConnection(self):
         if self.connection:
@@ -121,7 +130,7 @@ class MarriageTaggingWindow(QWidget):
         self.page_no_input = QLineEdit()
         self.page_no_input.setPlaceholderText("Page No.")
         self.page_no_input.setFixedWidth(220)
-        page_no_container.addWidget(QLabel("Page No.:"))
+        page_no_container.addWidget(self._create_label("Page No.:"))
         page_no_container.addWidget(self.page_no_input)
         reg_info_layout.addLayout(page_no_container)
 
@@ -129,7 +138,7 @@ class MarriageTaggingWindow(QWidget):
         self.book_no_input = QLineEdit()
         self.book_no_input.setPlaceholderText("Book No.")
         self.book_no_input.setFixedWidth(220)
-        book_no_container.addWidget(QLabel("Book No.:"))
+        book_no_container.addWidget(self._create_label("Book No.:"))
         book_no_container.addWidget(self.book_no_input)
         reg_info_layout.addLayout(book_no_container)
 
@@ -137,7 +146,7 @@ class MarriageTaggingWindow(QWidget):
         self.reg_no_input = QLineEdit()
         self.reg_no_input.setPlaceholderText("Registry No.")
         self.reg_no_input.setFixedWidth(220)
-        reg_no_container.addWidget(QLabel("Registry No.:"))
+        reg_no_container.addWidget(self._create_label("Registry No.:"))
         reg_no_container.addWidget(self.reg_no_input)
         reg_info_layout.addLayout(reg_no_container)
         form_layout.addLayout(reg_info_layout)
@@ -151,7 +160,7 @@ class MarriageTaggingWindow(QWidget):
         self.husband_name_input = QLineEdit()
         self.husband_name_input.setPlaceholderText("Husband Name")
         self.husband_name_input.setFixedWidth(500)
-        husband_name_container.addWidget(QLabel("Husband Name:"))
+        husband_name_container.addWidget(self._create_label("Husband Name:"))
         husband_name_container.addWidget(self.husband_name_input)
         husband_name_age_layout.addLayout(husband_name_container)
 
@@ -159,7 +168,7 @@ class MarriageTaggingWindow(QWidget):
         self.husband_age_input = QLineEdit()
         self.husband_age_input.setPlaceholderText("Age")
         self.husband_age_input.setFixedWidth(150)
-        husband_age_container.addWidget(QLabel("Age:"))
+        husband_age_container.addWidget(self._create_label("Age:"))
         husband_age_container.addWidget(self.husband_age_input)
         husband_name_age_layout.addLayout(husband_age_container)
 
@@ -187,7 +196,7 @@ class MarriageTaggingWindow(QWidget):
         ])
         self.husband_nationality_combo.setFixedWidth(350)
         self.husband_nationality_combo.setStyleSheet(combo_box_style)
-        husband_nat_container.addWidget(QLabel("Nationality:"))
+        husband_nat_container.addWidget(self._create_label("Nationality:"))
         husband_nat_container.addWidget(self.husband_nationality_combo)
         husband_cs_nat_layout.addLayout(husband_nat_container)
 
@@ -196,7 +205,7 @@ class MarriageTaggingWindow(QWidget):
         self.husband_civil_status_combo.addItems(["SINGLE", "WIDOWER", "DIVORCED", "ANNULLED"])
         self.husband_civil_status_combo.setFixedWidth(300)
         self.husband_civil_status_combo.setStyleSheet(combo_box_style)
-        husband_cs_container.addWidget(QLabel("Civil Status:"))
+        husband_cs_container.addWidget(self._create_label("Civil Status:"))
         husband_cs_container.addWidget(self.husband_civil_status_combo)
         husband_cs_nat_layout.addLayout(husband_cs_container)
 
@@ -210,7 +219,7 @@ class MarriageTaggingWindow(QWidget):
         self.husband_father_name_input = QLineEdit()
         self.husband_father_name_input.setPlaceholderText("Name of Father")
         self.husband_father_name_input.setFixedWidth(325)
-        husband_father_container.addWidget(QLabel("Name of Father:"))
+        husband_father_container.addWidget(self._create_label("Name of Father:"))
         husband_father_container.addWidget(self.husband_father_name_input)
         husband_parents_layout.addLayout(husband_father_container)
 
@@ -218,7 +227,7 @@ class MarriageTaggingWindow(QWidget):
         self.husband_mother_name_input = QLineEdit()
         self.husband_mother_name_input.setPlaceholderText("Name of Mother")
         self.husband_mother_name_input.setFixedWidth(325)
-        husband_mother_container.addWidget(QLabel("Name of Mother:"))
+        husband_mother_container.addWidget(self._create_label("Name of Mother:"))
         husband_mother_container.addWidget(self.husband_mother_name_input)
         husband_parents_layout.addLayout(husband_mother_container)
 
@@ -233,7 +242,7 @@ class MarriageTaggingWindow(QWidget):
         self.wife_name_input = QLineEdit()
         self.wife_name_input.setPlaceholderText("Wife Name")
         self.wife_name_input.setFixedWidth(500)
-        wife_name_container.addWidget(QLabel("Wife Name:"))
+        wife_name_container.addWidget(self._create_label("Wife Name:"))
         wife_name_container.addWidget(self.wife_name_input)
         wife_name_age_layout.addLayout(wife_name_container)
 
@@ -241,7 +250,7 @@ class MarriageTaggingWindow(QWidget):
         self.wife_age_input = QLineEdit()
         self.wife_age_input.setPlaceholderText("Age")
         self.wife_age_input.setFixedWidth(150)
-        wife_age_container.addWidget(QLabel("Age:"))
+        wife_age_container.addWidget(self._create_label("Age:"))
         wife_age_container.addWidget(self.wife_age_input)
         wife_name_age_layout.addLayout(wife_age_container)
 
@@ -269,7 +278,7 @@ class MarriageTaggingWindow(QWidget):
         ])
         self.wife_nationality_combo.setFixedWidth(350)
         self.wife_nationality_combo.setStyleSheet(combo_box_style)
-        wife_nat_container.addWidget(QLabel("Nationality:"))
+        wife_nat_container.addWidget(self._create_label("Nationality:"))
         wife_nat_container.addWidget(self.wife_nationality_combo)
         wife_cs_nat_layout.addLayout(wife_nat_container)
 
@@ -278,7 +287,7 @@ class MarriageTaggingWindow(QWidget):
         self.wife_civil_status_combo.addItems(["SINGLE", "WIDOW", "DIVORCED", "ANNULLED"])
         self.wife_civil_status_combo.setFixedWidth(300)
         self.wife_civil_status_combo.setStyleSheet(combo_box_style)
-        wife_cs_container.addWidget(QLabel("Civil Status:"))
+        wife_cs_container.addWidget(self._create_label("Civil Status:"))
         wife_cs_container.addWidget(self.wife_civil_status_combo)
         wife_cs_nat_layout.addLayout(wife_cs_container)
 
@@ -292,7 +301,7 @@ class MarriageTaggingWindow(QWidget):
         self.wife_father_name_input = QLineEdit()
         self.wife_father_name_input.setPlaceholderText("Name of Father")
         self.wife_father_name_input.setFixedWidth(325)
-        wife_father_container.addWidget(QLabel("Name of Father:"))
+        wife_father_container.addWidget(self._create_label("Name of Father:"))
         wife_father_container.addWidget(self.wife_father_name_input)
         wife_parents_layout.addLayout(wife_father_container)
 
@@ -300,7 +309,7 @@ class MarriageTaggingWindow(QWidget):
         self.wife_mother_name_input = QLineEdit()
         self.wife_mother_name_input.setPlaceholderText("Name of Mother")
         self.wife_mother_name_input.setFixedWidth(325)
-        wife_mother_container.addWidget(QLabel("Name of Mother:"))
+        wife_mother_container.addWidget(self._create_label("Name of Mother:"))
         wife_mother_container.addWidget(self.wife_mother_name_input)
         wife_parents_layout.addLayout(wife_mother_container)
 
@@ -316,7 +325,7 @@ class MarriageTaggingWindow(QWidget):
         self.date_of_marriage_input.setDate(QDate.currentDate())
         self.date_of_marriage_input.setFixedWidth(220)
         self.date_of_marriage_input.setStyleSheet(date_picker_style)
-        dom_container.addWidget(QLabel("Date of Marriage:"))
+        dom_container.addWidget(self._create_label("Date of Marriage:"))
         dom_container.addWidget(self.date_of_marriage_input)
         marriage_info_layout.addLayout(dom_container)
 
@@ -332,7 +341,7 @@ class MarriageTaggingWindow(QWidget):
         ])
         self.place_of_marriage_combo.setFixedWidth(450)
         self.place_of_marriage_combo.setStyleSheet(combo_box_style)
-        pom_container.addWidget(QLabel("Place of Marriage:"))
+        pom_container.addWidget(self._create_label("Place of Marriage:"))
         pom_container.addWidget(self.place_of_marriage_combo)
         marriage_info_layout.addLayout(pom_container)
 
@@ -352,7 +361,7 @@ class MarriageTaggingWindow(QWidget):
         ])
         self.ceremony_type_combo.setFixedWidth(270)
         self.ceremony_type_combo.setStyleSheet(combo_box_style)
-        ceremony_type_container.addWidget(QLabel("Ceremony Type:"))
+        ceremony_type_container.addWidget(self._create_label("Ceremony Type:"))
         ceremony_type_container.addWidget(self.ceremony_type_combo)
         final_info_layout.addLayout(ceremony_type_container)
 
@@ -361,7 +370,7 @@ class MarriageTaggingWindow(QWidget):
         self.late_reg_combo.addItems(["NO", "YES"])
         self.late_reg_combo.setFixedWidth(200)
         self.late_reg_combo.setStyleSheet(combo_box_style)
-        late_reg_container.addWidget(QLabel("Late Registration:"))
+        late_reg_container.addWidget(self._create_label("Late Registration:"))
         late_reg_container.addWidget(self.late_reg_combo)
         final_info_layout.addLayout(late_reg_container)
 
@@ -371,7 +380,7 @@ class MarriageTaggingWindow(QWidget):
         self.date_of_reg_input.setDate(QDate.currentDate())
         self.date_of_reg_input.setFixedWidth(200)
         self.date_of_reg_input.setStyleSheet(date_picker_style)
-        reg_date_container.addWidget(QLabel("Date of Registration:"))
+        reg_date_container.addWidget(self._create_label("Date of Registration:"))
         reg_date_container.addWidget(self.date_of_reg_input)
         final_info_layout.addLayout(reg_date_container)
         form_layout.addLayout(final_info_layout)
@@ -415,6 +424,7 @@ class MarriageTaggingWindow(QWidget):
         # PDF List Preview
         self.pdf_list = QListWidget()
         self.pdf_list.setFixedWidth(750)
+        self.pdf_list.setMaximumHeight(340)
         self.pdf_list.setIconSize(QSize(100, 140))
         self.pdf_list.itemClicked.connect(self.show_preview)
         self.pdf_list.setStyleSheet("""
@@ -460,7 +470,7 @@ class MarriageTaggingWindow(QWidget):
 
         # Split Layout: Inputs Left, PDF Right
         split_layout = QHBoxLayout()
-        split_layout.addLayout(main_layout, stretch=2)
+        split_layout.addLayout(main_layout, stretch=3)
         split_layout.addLayout(pdf_layout, stretch=5)
 
         self.setLayout(split_layout)
@@ -717,30 +727,30 @@ class MarriageTaggingWindow(QWidget):
                 cursor.close()
             self.closeConnection()
 
-    def check_registry_number_exists(self, conn, reg_no, exclude_file_path=None):
-        """Check if registry number already exists in the database."""
-        if not reg_no or reg_no.strip() == "":
-            return False, None
+    # def check_registry_number_exists(self, conn, reg_no, exclude_file_path=None):
+    #     """Check if registry number already exists in the database."""
+    #     if not reg_no or reg_no.strip() == "":
+    #         return False, None
             
-        cursor = conn.cursor()
-        try:
-            # Check if registry number exists, optionally excluding current file
-            if exclude_file_path:
-                cursor.execute("""
-                    SELECT file_path, husband_name, wife_name FROM marriage_index 
-                    WHERE reg_no = %s AND file_path != %s
-                """, (reg_no.strip(), exclude_file_path))
-            else:
-                cursor.execute("""
-                    SELECT file_path, husband_name, wife_name FROM marriage_index 
-                    WHERE reg_no = %s
-                """, (reg_no.strip(),))
+    #     cursor = conn.cursor()
+    #     try:
+    #         # Check if registry number exists, optionally excluding current file
+    #         if exclude_file_path:
+    #             cursor.execute("""
+    #                 SELECT file_path, husband_name, wife_name FROM marriage_index 
+    #                 WHERE reg_no = %s AND file_path != %s
+    #             """, (reg_no.strip(), exclude_file_path))
+    #         else:
+    #             cursor.execute("""
+    #                 SELECT file_path, husband_name, wife_name FROM marriage_index 
+    #                 WHERE reg_no = %s
+    #             """, (reg_no.strip(),))
             
-            result = cursor.fetchone()
-            return result is not None, result
-        finally:
-            if cursor:
-                cursor.close()
+    #         result = cursor.fetchone()
+    #         return result is not None, result
+    #     finally:
+    #         if cursor:
+    #             cursor.close()
 
     def save_tags(self):
         conn = self.create_connection()
@@ -773,28 +783,6 @@ class MarriageTaggingWindow(QWidget):
                 reg_no = self.reg_no_input.text()
                 husband_name = self.husband_name_input.text()
                 wife_name = self.wife_name_input.text()
-                
-                # Check if registry number already exists
-                if reg_no and reg_no.strip():
-                    exists, existing_record = self.check_registry_number_exists(conn, reg_no, self.selected_pdf)
-                    if exists:
-                        existing_file, existing_husband, existing_wife = existing_record
-                        AuditLogger.log_action(
-                            conn,
-                            self.current_user,
-                            "TAG_SAVE_FAILED",
-                            {"reason": "duplicate_registry_number", "reg_no": reg_no, "existing_file": existing_file}
-                        )
-                        conn.commit()
-                        
-                        box = QMessageBox(self)
-                        box.setIcon(QMessageBox.Warning)
-                        box.setWindowTitle("Duplicate Registry Number")
-                        box.setText(f"Registry number '{reg_no}' already exists in the database.\n\nExisting record:\nHusband: {existing_husband}\nWife: {existing_wife}\nFile: {os.path.basename(existing_file)}")
-                        box.setStandardButtons(QMessageBox.Ok)
-                        box.setStyleSheet(message_box_style)
-                        box.exec()
-                        return
                 
                 husband_age = self.husband_age_input.text()
                 wife_age = self.wife_age_input.text()
@@ -1085,8 +1073,24 @@ class MarriageTaggingWindow(QWidget):
     #         self.date_of_marriage_input, self.date_of_reg_input,
     #     ]
 
+    def _update_label_colors(self, background_color=None):
+        """Update background colors of all labels in form_area."""
+        if not hasattr(self, 'form_area') or self.form_area is None:
+            return
+        
+        # Find all QLabel widgets in form_area and update their palette
+        labels = self.form_area.findChildren(QLabel)
+        for label in labels:
+            label.setAutoFillBackground(True)
+            palette = label.palette()
+            if background_color:
+                palette.setColor(QPalette.Window, background_color)
+            else:
+                palette.setColor(QPalette.Window, Qt.white)
+            label.setPalette(palette)
+
     def set_saved_cue(self, enabled):
-        """Toggle green saved border on all fields."""
+        """Toggle pink saved border on all fields."""
         # for widget in self.get_form_fields():
         #     widget.setProperty("saved", True if enabled else False)
         #     # Re-polish to apply dynamic property stylesheet
@@ -1098,6 +1102,12 @@ class MarriageTaggingWindow(QWidget):
             self.form_area.style().unpolish(self.form_area)
             self.form_area.style().polish(self.form_area)
             self.form_area.update()
+            
+            # Update label colors
+            if enabled:
+                self._update_label_colors(QColor("#fce7f5"))  # Light pink
+            else:
+                self._update_label_colors(Qt.white)
 
 
 # if __name__ == "__main__":

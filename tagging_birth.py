@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QDate, QSize, QUrl, QSettings
-from PySide6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence
+from PySide6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence, QColor, QPalette
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from stylesheets import button_style, date_picker_style, combo_box_style, message_box_style
 from pdfviewer import PDFViewer
@@ -53,7 +53,10 @@ class BirthTaggingWindow(QWidget):
             }
             QWidget#form_area[saved="true"] {
                 background-color: #dff9e5; /* light green form background */
-            }           
+            }
+            QWidget#form_area[saved="true"] QLabel {
+                background-color: #dff9e5;
+            }
             QComboBox {
                 font-weight: bold;
             }
@@ -82,6 +85,12 @@ class BirthTaggingWindow(QWidget):
             self.connection = psycopg2.connect(**POSTGRES_CONFIG)
             self.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return self.connection
+
+    def _create_label(self, text):
+        """Create a QLabel with AutoFillBackground enabled."""
+        label = QLabel(text)
+        label.setAutoFillBackground(True)
+        return label
 
     def closeConnection(self):
         if self.connection:
@@ -121,7 +130,7 @@ class BirthTaggingWindow(QWidget):
         self.page_no_input = QLineEdit()
         self.page_no_input.setPlaceholderText("Page No.")
         self.page_no_input.setFixedWidth(220)
-        page_no_container.addWidget(QLabel("Page No.:"))
+        page_no_container.addWidget(self._create_label("Page No.:"))
         page_no_container.addWidget(self.page_no_input)
         reg_info_layout.addLayout(page_no_container)
 
@@ -129,7 +138,7 @@ class BirthTaggingWindow(QWidget):
         self.book_no_input = QLineEdit()
         self.book_no_input.setPlaceholderText("Book No.")
         self.book_no_input.setFixedWidth(220)
-        book_no_container.addWidget(QLabel("Book No.:"))
+        book_no_container.addWidget(self._create_label("Book No.:"))
         book_no_container.addWidget(self.book_no_input)
         reg_info_layout.addLayout(book_no_container)
 
@@ -137,7 +146,7 @@ class BirthTaggingWindow(QWidget):
         self.reg_no_input = QLineEdit()
         self.reg_no_input.setPlaceholderText("Registry No.")
         self.reg_no_input.setFixedWidth(220)
-        reg_no_container.addWidget(QLabel("Registry No.:"))
+        reg_no_container.addWidget(self._create_label("Registry No.:"))
         reg_no_container.addWidget(self.reg_no_input)
         reg_info_layout.addLayout(reg_no_container)
         form_layout.addLayout(reg_info_layout)
@@ -150,7 +159,7 @@ class BirthTaggingWindow(QWidget):
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Name")
         self.name_input.setFixedWidth(450)
-        name_container.addWidget(QLabel("Name:"))
+        name_container.addWidget(self._create_label("Name:"))
         name_container.addWidget(self.name_input)
         name_sex_layout.addLayout(name_container)
 
@@ -159,7 +168,7 @@ class BirthTaggingWindow(QWidget):
         self.sex_combo.addItems(["MALE", "FEMALE"])
         self.sex_combo.setFixedWidth(220)
         self.sex_combo.setStyleSheet(combo_box_style)
-        sex_container.addWidget(QLabel("Sex:"))
+        sex_container.addWidget(self._create_label("Sex:"))
         sex_container.addWidget(self.sex_combo)
         name_sex_layout.addLayout(sex_container)
         form_layout.addLayout(name_sex_layout)
@@ -174,7 +183,7 @@ class BirthTaggingWindow(QWidget):
         self.date_of_birth_input.setDate(QDate.currentDate())
         self.date_of_birth_input.setFixedWidth(150)
         self.date_of_birth_input.setStyleSheet(date_picker_style)
-        dob_container.addWidget(QLabel("Date of Birth:"))
+        dob_container.addWidget(self._create_label("Date of Birth:"))
         dob_container.addWidget(self.date_of_birth_input)
         birth_info_layout.addLayout(dob_container)
 
@@ -189,7 +198,7 @@ class BirthTaggingWindow(QWidget):
         ])
         self.place_of_birth_combo.setFixedWidth(400)
         self.place_of_birth_combo.setStyleSheet(combo_box_style)
-        pob_container.addWidget(QLabel("Place of Birth:"))
+        pob_container.addWidget(self._create_label("Place of Birth:"))
         pob_container.addWidget(self.place_of_birth_combo)
         birth_info_layout.addLayout(pob_container)
 
@@ -201,7 +210,7 @@ class BirthTaggingWindow(QWidget):
         ])
         self.type_of_birth_combo.setFixedWidth(100)
         self.type_of_birth_combo.setStyleSheet(combo_box_style)
-        type_of_birth_container.addWidget(QLabel("Type of Birth:"))
+        type_of_birth_container.addWidget(self._create_label("Type of Birth:"))
         type_of_birth_container.addWidget(self.type_of_birth_combo)
         birth_info_layout.addLayout(type_of_birth_container)
         form_layout.addLayout(birth_info_layout)
@@ -214,7 +223,7 @@ class BirthTaggingWindow(QWidget):
         self.mother_name_input = QLineEdit()
         self.mother_name_input.setPlaceholderText("Name of Mother")
         self.mother_name_input.setFixedWidth(450)
-        mother_name_container.addWidget(QLabel("Name of Mother:"))
+        mother_name_container.addWidget(self._create_label("Name of Mother:"))
         mother_name_container.addWidget(self.mother_name_input)
         mother_info_layout.addLayout(mother_name_container)
 
@@ -236,10 +245,43 @@ class BirthTaggingWindow(QWidget):
         ])
         self.mother_nationality_combo.setFixedWidth(220)
         self.mother_nationality_combo.setStyleSheet(combo_box_style)
-        mother_nat_container.addWidget(QLabel("Nationality of Mother:"))
+        mother_nat_container.addWidget(self._create_label("Nationality of Mother:"))
         mother_nat_container.addWidget(self.mother_nationality_combo)
         mother_info_layout.addLayout(mother_nat_container)
         form_layout.addLayout(mother_info_layout)
+
+        # Resident Information
+        resident_layout = QHBoxLayout()
+        resident_layout.setSpacing(10)
+
+        maasin_resident_container = QVBoxLayout()
+        self.maasin_resident_combo = QComboBox()
+        self.maasin_resident_combo.addItems(["NO", "YES"])
+        self.maasin_resident_combo.setFixedWidth(150)
+        self.maasin_resident_combo.setStyleSheet(combo_box_style)
+        maasin_resident_container.addWidget(self._create_label("Maasin Resident:"))
+        maasin_resident_container.addWidget(self.maasin_resident_combo)
+        resident_layout.addLayout(maasin_resident_container)
+
+        soleyte_resident_container = QVBoxLayout()
+        self.soleyte_resident_combo = QComboBox()
+        self.soleyte_resident_combo.addItems(["NO", "YES"])
+        self.soleyte_resident_combo.setFixedWidth(150)
+        self.soleyte_resident_combo.setStyleSheet(combo_box_style)
+        soleyte_resident_container.addWidget(self._create_label("Soleyte Resident:"))
+        soleyte_resident_container.addWidget(self.soleyte_resident_combo)
+        resident_layout.addLayout(soleyte_resident_container)
+
+        leyte_resident_container = QVBoxLayout()
+        self.leyte_resident_combo = QComboBox()
+        self.leyte_resident_combo.addItems(["NO", "YES"])
+        self.leyte_resident_combo.setFixedWidth(150)
+        self.leyte_resident_combo.setStyleSheet(combo_box_style)
+        leyte_resident_container.addWidget(self._create_label("Leyte Resident:"))
+        leyte_resident_container.addWidget(self.leyte_resident_combo)
+        resident_layout.addLayout(leyte_resident_container)
+
+        form_layout.addLayout(resident_layout)
 
         # Name of Father and Nationality
         father_info_layout = QHBoxLayout()
@@ -249,7 +291,7 @@ class BirthTaggingWindow(QWidget):
         self.father_name_input = QLineEdit()
         self.father_name_input.setPlaceholderText("Name of Father")
         self.father_name_input.setFixedWidth(450)
-        father_name_container.addWidget(QLabel("Name of Father:"))
+        father_name_container.addWidget(self._create_label("Name of Father:"))
         father_name_container.addWidget(self.father_name_input)
         father_info_layout.addLayout(father_name_container)
 
@@ -271,7 +313,7 @@ class BirthTaggingWindow(QWidget):
         ])
         self.father_nationality_combo.setFixedWidth(220)
         self.father_nationality_combo.setStyleSheet(combo_box_style)
-        father_nat_container.addWidget(QLabel("Nationality of Father:"))
+        father_nat_container.addWidget(self._create_label("Nationality of Father:"))
         father_nat_container.addWidget(self.father_nationality_combo)
         father_info_layout.addLayout(father_nat_container)
         form_layout.addLayout(father_info_layout)
@@ -314,7 +356,7 @@ class BirthTaggingWindow(QWidget):
         self.marriage_place_input.setFixedWidth(450)
         self.marriage_place_input.setStyleSheet(combo_box_style)
         self.marriage_place_input.currentTextChanged.connect(self.handle_marriage_place_change)
-        marriage_place_container.addWidget(QLabel("Place of Marriage:"))
+        marriage_place_container.addWidget(self._create_label("Place of Marriage:"))
         marriage_place_container.addWidget(self.marriage_place_input)
         marriage_info_layout.addLayout(marriage_place_container)
 
@@ -325,7 +367,7 @@ class BirthTaggingWindow(QWidget):
         self.date_of_marriage_input.setEnabled(False)
         self.date_of_marriage_input.setFixedWidth(220)
         self.date_of_marriage_input.setStyleSheet(date_picker_style)
-        marriage_date_container.addWidget(QLabel("Date of Marriage:"))
+        marriage_date_container.addWidget(self._create_label("Date of Marriage:"))
         marriage_date_container.addWidget(self.date_of_marriage_input)
         marriage_info_layout.addLayout(marriage_date_container)
         form_layout.addLayout(marriage_info_layout)
@@ -348,7 +390,7 @@ class BirthTaggingWindow(QWidget):
         ])
         self.attendant_combo.setFixedWidth(150)
         self.attendant_combo.setStyleSheet(combo_box_style)
-        attendant_container.addWidget(QLabel("Attendant:"))
+        attendant_container.addWidget(self._create_label("Attendant:"))
         attendant_container.addWidget(self.attendant_combo)
         final_info_layout.addLayout(attendant_container)
 
@@ -357,7 +399,7 @@ class BirthTaggingWindow(QWidget):
         self.late_reg_combo.addItems(["NO", "YES"])
         self.late_reg_combo.setFixedWidth(150)
         self.late_reg_combo.setStyleSheet(combo_box_style)
-        late_reg_container.addWidget(QLabel("Late Registration:"))
+        late_reg_container.addWidget(self._create_label("Late Registration:"))
         late_reg_container.addWidget(self.late_reg_combo)
         final_info_layout.addLayout(late_reg_container)
 
@@ -367,43 +409,10 @@ class BirthTaggingWindow(QWidget):
         self.date_of_reg_input.setDate(QDate.currentDate())
         self.date_of_reg_input.setFixedWidth(150)
         self.date_of_reg_input.setStyleSheet(date_picker_style)
-        reg_date_container.addWidget(QLabel("Date of Registration:"))
+        reg_date_container.addWidget(self._create_label("Date of Registration:"))
         reg_date_container.addWidget(self.date_of_reg_input)
         final_info_layout.addLayout(reg_date_container)
         form_layout.addLayout(final_info_layout)
-
-        # Resident Information
-        resident_layout = QHBoxLayout()
-        resident_layout.setSpacing(10)
-
-        maasin_resident_container = QVBoxLayout()
-        self.maasin_resident_combo = QComboBox()
-        self.maasin_resident_combo.addItems(["NO", "YES"])
-        self.maasin_resident_combo.setFixedWidth(150)
-        self.maasin_resident_combo.setStyleSheet(combo_box_style)
-        maasin_resident_container.addWidget(QLabel("Maasin Resident:"))
-        maasin_resident_container.addWidget(self.maasin_resident_combo)
-        resident_layout.addLayout(maasin_resident_container)
-
-        soleyte_resident_container = QVBoxLayout()
-        self.soleyte_resident_combo = QComboBox()
-        self.soleyte_resident_combo.addItems(["NO", "YES"])
-        self.soleyte_resident_combo.setFixedWidth(150)
-        self.soleyte_resident_combo.setStyleSheet(combo_box_style)
-        soleyte_resident_container.addWidget(QLabel("Soleyte Resident:"))
-        soleyte_resident_container.addWidget(self.soleyte_resident_combo)
-        resident_layout.addLayout(soleyte_resident_container)
-
-        leyte_resident_container = QVBoxLayout()
-        self.leyte_resident_combo = QComboBox()
-        self.leyte_resident_combo.addItems(["NO", "YES"])
-        self.leyte_resident_combo.setFixedWidth(150)
-        self.leyte_resident_combo.setStyleSheet(combo_box_style)
-        leyte_resident_container.addWidget(QLabel("Leyte Resident:"))
-        leyte_resident_container.addWidget(self.leyte_resident_combo)
-        resident_layout.addLayout(leyte_resident_container)
-
-        form_layout.addLayout(resident_layout)
 
         # Add the form widget to the scroll area
         scroll_area.setWidget(form_widget)
@@ -438,6 +447,7 @@ class BirthTaggingWindow(QWidget):
         # PDF List Preview
         self.pdf_list = QListWidget()
         self.pdf_list.setFixedWidth(750)
+        self.pdf_list.setMaximumHeight(340)
         self.pdf_list.setIconSize(QSize(100, 140))
         self.pdf_list.itemClicked.connect(self.show_preview)
         self.pdf_list.setStyleSheet("""
@@ -483,7 +493,7 @@ class BirthTaggingWindow(QWidget):
 
         # Split Layout: Inputs Left, PDF Right
         split_layout = QHBoxLayout()
-        split_layout.addLayout(main_layout, stretch=2)
+        split_layout.addLayout(main_layout, stretch=3)
         split_layout.addLayout(pdf_layout, stretch=5)
 
         self.setLayout(split_layout)
@@ -763,30 +773,30 @@ class BirthTaggingWindow(QWidget):
                 cursor.close()
             self.closeConnection()
 
-    def check_registry_number_exists(self, conn, reg_no, exclude_file_path=None):
-        """Check if registry number already exists in the database."""
-        if not reg_no or reg_no.strip() == "":
-            return False, None
+    # def check_registry_number_exists(self, conn, reg_no, exclude_file_path=None):
+    #     """Check if registry number already exists in the database."""
+    #     if not reg_no or reg_no.strip() == "":
+    #         return False, None
             
-        cursor = conn.cursor()
-        try:
-            # Check if registry number exists, optionally excluding current file
-            if exclude_file_path:
-                cursor.execute("""
-                    SELECT file_path, name FROM birth_index 
-                    WHERE reg_no = %s AND file_path != %s
-                """, (reg_no.strip(), exclude_file_path))
-            else:
-                cursor.execute("""
-                    SELECT file_path, name FROM birth_index 
-                    WHERE reg_no = %s
-                """, (reg_no.strip(),))
+    #     cursor = conn.cursor()
+    #     try:
+    #         # Check if registry number exists, optionally excluding current file
+    #         if exclude_file_path:
+    #             cursor.execute("""
+    #                 SELECT file_path, name FROM birth_index 
+    #                 WHERE reg_no = %s AND file_path != %s
+    #             """, (reg_no.strip(), exclude_file_path))
+    #         else:
+    #             cursor.execute("""
+    #                 SELECT file_path, name FROM birth_index 
+    #                 WHERE reg_no = %s
+    #             """, (reg_no.strip(),))
             
-            result = cursor.fetchone()
-            return result is not None, result
-        finally:
-            if cursor:
-                cursor.close()
+    #         result = cursor.fetchone()
+    #         return result is not None, result
+    #     finally:
+    #         if cursor:
+    #             cursor.close()
 
     def save_tags(self):
         conn = self.create_connection()
@@ -827,28 +837,6 @@ class BirthTaggingWindow(QWidget):
                 name_of_father = self.father_name_input.text() if self.father_name_input.text() != "" else None
                 nationality_father = self.father_nationality_combo.currentText() if self.father_name_input.text() != "" else None
                 type_of_birth = self.type_of_birth_combo.currentText()
-                
-                # Check if registry number already exists
-                if reg_no and reg_no.strip():
-                    exists, existing_record = self.check_registry_number_exists(conn, reg_no, self.selected_pdf)
-                    if exists:
-                        existing_file, existing_name = existing_record
-                        AuditLogger.log_action(
-                            conn,
-                            self.current_user,
-                            "TAG_SAVE_FAILED",
-                            {"reason": "duplicate_registry_number", "reg_no": reg_no, "existing_file": existing_file}
-                        )
-                        conn.commit()
-                        
-                        box = QMessageBox(self)
-                        box.setIcon(QMessageBox.Warning)
-                        box.setWindowTitle("Duplicate Registry Number")
-                        box.setText(f"Registry number '{reg_no}' already exists in the database.\n\nExisting record:\nName: {existing_name}\nFile: {os.path.basename(existing_file)}")
-                        box.setStandardButtons(QMessageBox.Ok)
-                        box.setStyleSheet(message_box_style)
-                        box.exec()
-                        return
                 
                 # Handle marriage date based on marriage place
                 if self.marriage_place_input.currentText() in ["NOT MARRIED", "FORGOTTEN", "DON'T KNOW", "NOT APPLICABLE"]:
@@ -1137,6 +1125,22 @@ class BirthTaggingWindow(QWidget):
     #         self.date_of_birth_input, self.date_of_reg_input, self.date_of_marriage_input,
     #     ]
 
+    def _update_label_colors(self, background_color=None):
+        """Update background colors of all labels in form_area."""
+        if not hasattr(self, 'form_area') or self.form_area is None:
+            return
+        
+        # Find all QLabel widgets in form_area and update their palette
+        labels = self.form_area.findChildren(QLabel)
+        for label in labels:
+            label.setAutoFillBackground(True)
+            palette = label.palette()
+            if background_color:
+                palette.setColor(QPalette.Window, background_color)
+            else:
+                palette.setColor(QPalette.Window, Qt.white)
+            label.setPalette(palette)
+
     def set_saved_cue(self, enabled):
         """Toggle green saved border on all fields."""
         # for widget in self.get_form_fields():
@@ -1150,6 +1154,12 @@ class BirthTaggingWindow(QWidget):
             self.form_area.style().unpolish(self.form_area)
             self.form_area.style().polish(self.form_area)
             self.form_area.update()
+            
+            # Update label colors
+            if enabled:
+                self._update_label_colors(QColor("#dff9e5"))  # Light green
+            else:
+                self._update_label_colors(Qt.white)
 
 
 

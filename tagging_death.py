@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QDate, QSize, QUrl, QSettings
-from PySide6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence
+from PySide6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence, QColor, QPalette
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from stylesheets import button_style, date_picker_style, combo_box_style, message_box_style
 from pdfviewer import PDFViewer
@@ -54,6 +54,9 @@ class DeathTaggingWindow(QWidget):
             QWidget#form_area[saved="true"] {
                 background-color: #e0e7ff;
             }
+            QWidget#form_area[saved="true"] QLabel {
+                background-color: #e0e7ff;
+            }
             QComboBox {
                 font-weight: bold;
             }
@@ -79,6 +82,12 @@ class DeathTaggingWindow(QWidget):
             self.connection = psycopg2.connect(**POSTGRES_CONFIG)
             self.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return self.connection
+
+    def _create_label(self, text):
+        """Create a QLabel with AutoFillBackground enabled."""
+        label = QLabel(text)
+        label.setAutoFillBackground(True)
+        return label
 
     def closeConnection(self):
         if self.connection:
@@ -118,7 +127,7 @@ class DeathTaggingWindow(QWidget):
         self.page_no_input = QLineEdit()
         self.page_no_input.setPlaceholderText("Page No.")
         self.page_no_input.setFixedWidth(220)
-        page_no_container.addWidget(QLabel("Page No.:"))
+        page_no_container.addWidget(self._create_label("Page No.:"))
         page_no_container.addWidget(self.page_no_input)
         reg_info_layout.addLayout(page_no_container)
 
@@ -126,7 +135,7 @@ class DeathTaggingWindow(QWidget):
         self.book_no_input = QLineEdit()
         self.book_no_input.setPlaceholderText("Book No.")
         self.book_no_input.setFixedWidth(220)
-        book_no_container.addWidget(QLabel("Book No.:"))
+        book_no_container.addWidget(self._create_label("Book No.:"))
         book_no_container.addWidget(self.book_no_input)
         reg_info_layout.addLayout(book_no_container)
 
@@ -134,7 +143,7 @@ class DeathTaggingWindow(QWidget):
         self.reg_no_input = QLineEdit()
         self.reg_no_input.setPlaceholderText("Registry No.")
         self.reg_no_input.setFixedWidth(220)
-        reg_no_container.addWidget(QLabel("Registry No.:"))
+        reg_no_container.addWidget(self._create_label("Registry No.:"))
         reg_no_container.addWidget(self.reg_no_input)
         reg_info_layout.addLayout(reg_no_container)
         form_layout.addLayout(reg_info_layout)
@@ -147,7 +156,7 @@ class DeathTaggingWindow(QWidget):
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Name")
         self.name_input.setFixedWidth(400)
-        name_container.addWidget(QLabel("Name:"))
+        name_container.addWidget(self._create_label("Name:"))
         name_container.addWidget(self.name_input)
         name_sex_layout.addLayout(name_container)
 
@@ -156,7 +165,7 @@ class DeathTaggingWindow(QWidget):
         self.sex_combo.addItems(["MALE", "FEMALE"])
         self.sex_combo.setFixedWidth(200)
         self.sex_combo.setStyleSheet(combo_box_style)
-        sex_container.addWidget(QLabel("Sex:"))
+        sex_container.addWidget(self._create_label("Sex:"))
         sex_container.addWidget(self.sex_combo)
         name_sex_layout.addLayout(sex_container)
 
@@ -172,7 +181,7 @@ class DeathTaggingWindow(QWidget):
         self.date_of_death_input.setDate(QDate.currentDate())
         self.date_of_death_input.setFixedWidth(220)
         self.date_of_death_input.setStyleSheet(date_picker_style)
-        death_date_container.addWidget(QLabel("Date of Death:"))
+        death_date_container.addWidget(self._create_label("Date of Death:"))
         death_date_container.addWidget(self.date_of_death_input)
         date_age_layout.addLayout(death_date_container)
         
@@ -180,7 +189,7 @@ class DeathTaggingWindow(QWidget):
         self.age_input = QLineEdit()
         self.age_input.setPlaceholderText("Age (Years)")
         self.age_input.setFixedWidth(70)
-        age_container.addWidget(QLabel("Age (Years):"))
+        age_container.addWidget(self._create_label("Age (Years):"))
         age_container.addWidget(self.age_input)
         date_age_layout.addLayout(age_container)    
 
@@ -188,7 +197,7 @@ class DeathTaggingWindow(QWidget):
         self.age_months_input = QLineEdit()
         self.age_months_input.setPlaceholderText("Months")
         self.age_months_input.setFixedWidth(70)
-        age_months_container.addWidget(QLabel("Months:"))
+        age_months_container.addWidget(self._create_label("Months:"))
         age_months_container.addWidget(self.age_months_input)
         date_age_layout.addLayout(age_months_container)
 
@@ -196,7 +205,7 @@ class DeathTaggingWindow(QWidget):
         self.age_days_input = QLineEdit()
         self.age_days_input.setPlaceholderText("Days")
         self.age_days_input.setFixedWidth(70)
-        age_days_container.addWidget(QLabel("Days:"))
+        age_days_container.addWidget(self._create_label("Days:"))
         age_days_container.addWidget(self.age_days_input)
         date_age_layout.addLayout(age_days_container)
 
@@ -204,7 +213,7 @@ class DeathTaggingWindow(QWidget):
         self.age_hours_input = QLineEdit()
         self.age_hours_input.setPlaceholderText("Hours")
         self.age_hours_input.setFixedWidth(70)
-        age_hours_container.addWidget(QLabel("Hours:"))
+        age_hours_container.addWidget(self._create_label("Hours:"))
         age_hours_container.addWidget(self.age_hours_input)
         date_age_layout.addLayout(age_hours_container)
 
@@ -212,7 +221,7 @@ class DeathTaggingWindow(QWidget):
         self.age_mins_input = QLineEdit()
         self.age_mins_input.setPlaceholderText("Minutes")
         self.age_mins_input.setFixedWidth(70)
-        age_mins_container.addWidget(QLabel("Minutes:"))
+        age_mins_container.addWidget(self._create_label("Minutes:"))
         age_mins_container.addWidget(self.age_mins_input)
         date_age_layout.addLayout(age_mins_container)
 
@@ -233,7 +242,7 @@ class DeathTaggingWindow(QWidget):
         ])
         self.death_place_input.setFixedWidth(700)
         self.death_place_input.setStyleSheet(combo_box_style)
-        death_place_container.addWidget(QLabel("Place of Death:"))
+        death_place_container.addWidget(self._create_label("Place of Death:"))
         death_place_container.addWidget(self.death_place_input)
         death_info_layout.addLayout(death_place_container)
 
@@ -248,7 +257,7 @@ class DeathTaggingWindow(QWidget):
         self.civil_status_combo.addItems(["SINGLE", "MARRIED", "WIDOW", "WIDOWER", "DIVORCED", "ANNULLED"])
         self.civil_status_combo.setFixedWidth(300)
         self.civil_status_combo.setStyleSheet(combo_box_style)
-        cs_container.addWidget(QLabel("Civil Status:"))
+        cs_container.addWidget(self._create_label("Civil Status:"))
         cs_container.addWidget(self.civil_status_combo)
         cs_nat_layout.addLayout(cs_container)
 
@@ -270,11 +279,44 @@ class DeathTaggingWindow(QWidget):
         ])
         self.nationality_combo.setFixedWidth(350)
         self.nationality_combo.setStyleSheet(combo_box_style)
-        nat_container.addWidget(QLabel("Nationality:"))
+        nat_container.addWidget(self._create_label("Nationality:"))
         nat_container.addWidget(self.nationality_combo)
         cs_nat_layout.addLayout(nat_container)
 
         form_layout.addLayout(cs_nat_layout)
+
+        # Resident Information
+        resident_layout = QHBoxLayout()
+        resident_layout.setSpacing(10)
+
+        maasin_resident_container = QVBoxLayout()
+        self.maasin_resident_combo = QComboBox()
+        self.maasin_resident_combo.addItems(["NO", "YES"])
+        self.maasin_resident_combo.setFixedWidth(150)
+        self.maasin_resident_combo.setStyleSheet(combo_box_style)
+        maasin_resident_container.addWidget(self._create_label("Maasin Resident:"))
+        maasin_resident_container.addWidget(self.maasin_resident_combo)
+        resident_layout.addLayout(maasin_resident_container)
+
+        soleyte_resident_container = QVBoxLayout()
+        self.soleyte_resident_combo = QComboBox()
+        self.soleyte_resident_combo.addItems(["NO", "YES"])
+        self.soleyte_resident_combo.setFixedWidth(150)
+        self.soleyte_resident_combo.setStyleSheet(combo_box_style)
+        soleyte_resident_container.addWidget(self._create_label("Soleyte Resident:"))
+        soleyte_resident_container.addWidget(self.soleyte_resident_combo)
+        resident_layout.addLayout(soleyte_resident_container)
+
+        leyte_resident_container = QVBoxLayout()
+        self.leyte_resident_combo = QComboBox()
+        self.leyte_resident_combo.addItems(["NO", "YES"])
+        self.leyte_resident_combo.setFixedWidth(150)
+        self.leyte_resident_combo.setStyleSheet(combo_box_style)
+        leyte_resident_container.addWidget(self._create_label("Leyte Resident:"))
+        leyte_resident_container.addWidget(self.leyte_resident_combo)
+        resident_layout.addLayout(leyte_resident_container)
+
+        form_layout.addLayout(resident_layout)
 
         # Cause of Death
         cod_layout = QHBoxLayout()
@@ -284,7 +326,7 @@ class DeathTaggingWindow(QWidget):
         self.cause_of_death_input = QLineEdit()
         self.cause_of_death_input.setPlaceholderText("Cause of Death")
         self.cause_of_death_input.setFixedWidth(700)
-        cod_container.addWidget(QLabel("Cause of Death:"))
+        cod_container.addWidget(self._create_label("Cause of Death:"))
         cod_container.addWidget(self.cause_of_death_input)
         cod_layout.addLayout(cod_container)
 
@@ -300,7 +342,7 @@ class DeathTaggingWindow(QWidget):
         self.corpse_disposal_combo.addItems(["BURIAL", "CREMATION"])
         self.corpse_disposal_combo.setFixedWidth(270)
         self.corpse_disposal_combo.setStyleSheet(combo_box_style)
-        corpse_disposal_container.addWidget(QLabel("Corpse Disposal:"))
+        corpse_disposal_container.addWidget(self._create_label("Corpse Disposal:"))
         corpse_disposal_container.addWidget(self.corpse_disposal_combo)
         final_info_layout.addLayout(corpse_disposal_container)
 
@@ -309,7 +351,7 @@ class DeathTaggingWindow(QWidget):
         self.late_reg_combo.addItems(["NO", "YES"])
         self.late_reg_combo.setFixedWidth(200)
         self.late_reg_combo.setStyleSheet(combo_box_style)
-        late_reg_container.addWidget(QLabel("Late Registration:"))
+        late_reg_container.addWidget(self._create_label("Late Registration:"))
         late_reg_container.addWidget(self.late_reg_combo)
         final_info_layout.addLayout(late_reg_container)
 
@@ -319,43 +361,10 @@ class DeathTaggingWindow(QWidget):
         self.date_of_reg_input.setDate(QDate.currentDate())
         self.date_of_reg_input.setFixedWidth(200)
         self.date_of_reg_input.setStyleSheet(date_picker_style)
-        reg_date_container.addWidget(QLabel("Date of Registration:"))
+        reg_date_container.addWidget(self._create_label("Date of Registration:"))
         reg_date_container.addWidget(self.date_of_reg_input)
         final_info_layout.addLayout(reg_date_container)
         form_layout.addLayout(final_info_layout)
-
-        # Resident Information
-        resident_layout = QHBoxLayout()
-        resident_layout.setSpacing(10)
-
-        maasin_resident_container = QVBoxLayout()
-        self.maasin_resident_combo = QComboBox()
-        self.maasin_resident_combo.addItems(["NO", "YES"])
-        self.maasin_resident_combo.setFixedWidth(150)
-        self.maasin_resident_combo.setStyleSheet(combo_box_style)
-        maasin_resident_container.addWidget(QLabel("Maasin Resident:"))
-        maasin_resident_container.addWidget(self.maasin_resident_combo)
-        resident_layout.addLayout(maasin_resident_container)
-
-        soleyte_resident_container = QVBoxLayout()
-        self.soleyte_resident_combo = QComboBox()
-        self.soleyte_resident_combo.addItems(["NO", "YES"])
-        self.soleyte_resident_combo.setFixedWidth(150)
-        self.soleyte_resident_combo.setStyleSheet(combo_box_style)
-        soleyte_resident_container.addWidget(QLabel("Soleyte Resident:"))
-        soleyte_resident_container.addWidget(self.soleyte_resident_combo)
-        resident_layout.addLayout(soleyte_resident_container)
-
-        leyte_resident_container = QVBoxLayout()
-        self.leyte_resident_combo = QComboBox()
-        self.leyte_resident_combo.addItems(["NO", "YES"])
-        self.leyte_resident_combo.setFixedWidth(150)
-        self.leyte_resident_combo.setStyleSheet(combo_box_style)
-        leyte_resident_container.addWidget(QLabel("Leyte Resident:"))
-        leyte_resident_container.addWidget(self.leyte_resident_combo)
-        resident_layout.addLayout(leyte_resident_container)
-
-        form_layout.addLayout(resident_layout)
 
         # Add the form widget to the scroll area
         scroll_area.setWidget(form_widget)
@@ -396,6 +405,7 @@ class DeathTaggingWindow(QWidget):
         # PDF List Preview
         self.pdf_list = QListWidget()
         self.pdf_list.setFixedWidth(750)
+        self.pdf_list.setMaximumHeight(340)
         self.pdf_list.setIconSize(QSize(100, 140))
         self.pdf_list.itemClicked.connect(self.show_preview)
         self.pdf_list.setStyleSheet("""
@@ -441,7 +451,7 @@ class DeathTaggingWindow(QWidget):
 
         # Split Layout: Inputs Left, PDF Right
         split_layout = QHBoxLayout()
-        split_layout.addLayout(main_layout, stretch=2)
+        split_layout.addLayout(main_layout, stretch=3)
         split_layout.addLayout(pdf_layout, stretch=5)
 
         self.setLayout(split_layout)
@@ -701,30 +711,30 @@ class DeathTaggingWindow(QWidget):
                 cursor.close()
             self.closeConnection()
 
-    def check_registry_number_exists(self, conn, reg_no, exclude_file_path=None):
-        """Check if registry number already exists in the database."""
-        if not reg_no or reg_no.strip() == "":
-            return False, None
+    # def check_registry_number_exists(self, conn, reg_no, exclude_file_path=None):
+    #     """Check if registry number already exists in the database."""
+    #     if not reg_no or reg_no.strip() == "":
+    #         return False, None
             
-        cursor = conn.cursor()
-        try:
-            # Check if registry number exists, optionally excluding current file
-            if exclude_file_path:
-                cursor.execute("""
-                    SELECT file_path, name FROM death_index 
-                    WHERE reg_no = %s AND file_path != %s
-                """, (reg_no.strip(), exclude_file_path))
-            else:
-                cursor.execute("""
-                    SELECT file_path, name FROM death_index 
-                    WHERE reg_no = %s
-                """, (reg_no.strip(),))
+    #     cursor = conn.cursor()
+    #     try:
+    #         # Check if registry number exists, optionally excluding current file
+    #         if exclude_file_path:
+    #             cursor.execute("""
+    #                 SELECT file_path, name FROM death_index 
+    #                 WHERE reg_no = %s AND file_path != %s
+    #             """, (reg_no.strip(), exclude_file_path))
+    #         else:
+    #             cursor.execute("""
+    #                 SELECT file_path, name FROM death_index 
+    #                 WHERE reg_no = %s
+    #             """, (reg_no.strip(),))
             
-            result = cursor.fetchone()
-            return result is not None, result
-        finally:
-            if cursor:
-                cursor.close()
+    #         result = cursor.fetchone()
+    #         return result is not None, result
+    #     finally:
+    #         if cursor:
+    #             cursor.close()
 
     def save_tags(self):
         conn = self.create_connection()
@@ -756,28 +766,6 @@ class DeathTaggingWindow(QWidget):
                 book_no = int(self.book_no_input.text()) if self.book_no_input.text() else None
                 reg_no = self.reg_no_input.text()
                 name = self.name_input.text()
-                
-                # Check if registry number already exists
-                if reg_no and reg_no.strip():
-                    exists, existing_record = self.check_registry_number_exists(conn, reg_no, self.selected_pdf)
-                    if exists:
-                        existing_file, existing_name = existing_record
-                        AuditLogger.log_action(
-                            conn,
-                            self.current_user,
-                            "TAG_SAVE_FAILED",
-                            {"reason": "duplicate_registry_number", "reg_no": reg_no, "existing_file": existing_file}
-                        )
-                        conn.commit()
-                        
-                        box = QMessageBox(self)
-                        box.setIcon(QMessageBox.Warning)
-                        box.setWindowTitle("Duplicate Registry Number")
-                        box.setText(f"Registry number '{reg_no}' already exists in the database.\n\nExisting record:\nName: {existing_name}\nFile: {os.path.basename(existing_file)}")
-                        box.setStandardButtons(QMessageBox.Ok)
-                        box.setStyleSheet(message_box_style)
-                        box.exec()
-                        return
                 
                 def parse_int(text):
                     return int(text) if text and text.isdigit() else None
@@ -1067,8 +1055,24 @@ class DeathTaggingWindow(QWidget):
     #         self.date_of_death_input, self.date_of_reg_input,
     #     ]
 
+    def _update_label_colors(self, background_color=None):
+        """Update background colors of all labels in form_area."""
+        if not hasattr(self, 'form_area') or self.form_area is None:
+            return
+        
+        # Find all QLabel widgets in form_area and update their palette
+        labels = self.form_area.findChildren(QLabel)
+        for label in labels:
+            label.setAutoFillBackground(True)
+            palette = label.palette()
+            if background_color:
+                palette.setColor(QPalette.Window, background_color)
+            else:
+                palette.setColor(QPalette.Window, Qt.white)
+            label.setPalette(palette)
+
     def set_saved_cue(self, enabled):
-        """Toggle green saved border on all fields."""
+        """Toggle blue saved border on all fields."""
         # for widget in self.get_form_fields():
         #     widget.setProperty("saved", True if enabled else False)
         #     # Re-polish to apply dynamic property stylesheet
@@ -1080,6 +1084,12 @@ class DeathTaggingWindow(QWidget):
             self.form_area.style().unpolish(self.form_area)
             self.form_area.style().polish(self.form_area)
             self.form_area.update()
+            
+            # Update label colors
+            if enabled:
+                self._update_label_colors(QColor("#e0e7ff"))  # Light blue
+            else:
+                self._update_label_colors(Qt.white)
 
 
 # if __name__ == "__main__":
