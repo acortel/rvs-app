@@ -51,6 +51,11 @@ class DeathTaggingWindow(QWidget):
                 border: 1px solid #ce305e;
                 background-color: #fef2f4;
             }
+            QLineEdit:disabled {
+                background-color: #fef2f4;
+                color: #9E9E9E;
+                border: 1px solid #CCCCCC;
+            }
             QWidget#form_area[saved="true"] {
                 background-color: #e0e7ff;
             }
@@ -373,27 +378,36 @@ class DeathTaggingWindow(QWidget):
         # Action Buttons
         button_layout = QHBoxLayout()
 
-        save_btn = QPushButton("Save Tags")
-        save_btn.clicked.connect(self.save_tags)
-        save_btn.setFixedWidth(130)
-        button_layout.addWidget(save_btn)
+        self.save_btn = QPushButton("Save Tags")
+        self.save_btn.clicked.connect(self.save_tags)
+        self.save_btn.setFixedWidth(130)
+        button_layout.addWidget(self.save_btn)
 
         # Add keyboard shortcut for save button (Ctrl+S)
         save_shortcut = QShortcut(QKeySequence.StandardKey.Save, self)
         save_shortcut.activated.connect(self.save_tags)
 
-        delete_btn = QPushButton("Delete Tags")
-        delete_btn.clicked.connect(self.delete_tags)
-        delete_btn.setFixedWidth(130)
-        button_layout.addWidget(delete_btn)
+        self.delete_btn = QPushButton("Delete Tags")
+        self.delete_btn.clicked.connect(self.delete_tags)
+        self.delete_btn.setFixedWidth(130)
+        self.delete_btn.setEnabled(False)  # Disabled by default
+        button_layout.addWidget(self.delete_btn)
+
+        # Edit Button
+        self.edit_btn = QPushButton("Edit")
+        self.edit_btn.clicked.connect(self.on_edit_clicked)
+        self.edit_btn.setFixedWidth(130)
+        self.edit_btn.setEnabled(False)  # Disabled by default
+        button_layout.addWidget(self.edit_btn)
 
         # clear_btn = QPushButton("Clear All Tags")
         # clear_btn.clicked.connect(self.clear_all_tags)
         # clear_btn.setFixedWidth(130)
         # button_layout.addWidget(clear_btn)
 
-        save_btn.setStyleSheet(button_style)
-        delete_btn.setStyleSheet(button_style)
+        self.save_btn.setStyleSheet(button_style)
+        self.delete_btn.setStyleSheet(button_style)
+        self.edit_btn.setStyleSheet(button_style)
         # clear_btn.setStyleSheet(button_style)
 
         button_layout.setSpacing(5)
@@ -738,6 +752,7 @@ class DeathTaggingWindow(QWidget):
 
     def save_tags(self):
         conn = self.create_connection()
+        cursor = None
         try:
             if not self.selected_pdf:
                 AuditLogger.log_action(
@@ -756,6 +771,17 @@ class DeathTaggingWindow(QWidget):
                 box.setStyleSheet(message_box_style)
 
                 box.exec()
+                return
+
+            # Confirmation dialog before saving
+            confirm_box = QMessageBox(self)
+            confirm_box.setIcon(QMessageBox.Question)
+            confirm_box.setWindowTitle("Confirm Save")
+            confirm_box.setText("Are you sure you want to save these tags?")
+            confirm_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            confirm_box.setStyleSheet(message_box_style)
+            
+            if confirm_box.exec() != QMessageBox.Yes:
                 return
 
             cursor = conn.cursor()
@@ -878,6 +904,7 @@ class DeathTaggingWindow(QWidget):
 
     def delete_tags(self):
         conn = self.create_connection()
+        cursor = None
         try:
             if not self.selected_pdf:
                 AuditLogger.log_action(
@@ -895,6 +922,17 @@ class DeathTaggingWindow(QWidget):
                 box.setStandardButtons(QMessageBox.Ok)
                 box.setStyleSheet(message_box_style)
                 box.exec()
+                return
+
+            # Confirmation dialog before deleting
+            confirm_box = QMessageBox(self)
+            confirm_box.setIcon(QMessageBox.Warning)
+            confirm_box.setWindowTitle("Confirm Delete")
+            confirm_box.setText("Are you sure you want to delete these tags? This action cannot be undone.")
+            confirm_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            confirm_box.setStyleSheet(message_box_style)
+            
+            if confirm_box.exec() != QMessageBox.Yes:
                 return
 
             cursor = conn.cursor()
@@ -1041,19 +1079,31 @@ class DeathTaggingWindow(QWidget):
     #             self.date_of_marriage_input.setDate(QDate.currentDate())
 
 
-    # def get_form_fields(self):
-    #     """Return all form field widgets for styling updates."""
-    #     return [
-    #         # Line edits
-    #         self.page_no_input, self.book_no_input, self.reg_no_input, self.name_input,
-    #         self.age_input, self.age_months_input, self.age_days_input, self.age_hours_input,
-    #         self.age_mins_input, self.cause_of_death_input,
-    #         # Combo boxes
-    #         self.sex_combo, self.civil_status_combo, self.nationality_combo, self.death_place_input,
-    #         self.corpse_disposal_combo, self.late_reg_combo,
-    #         # Dates
-    #         self.date_of_death_input, self.date_of_reg_input,
-    #     ]
+    def get_form_fields(self):
+        """Return all form field widgets for enabling/disabling."""
+        return [
+            # Line edits
+            self.page_no_input, self.book_no_input, self.reg_no_input, self.name_input,
+            self.age_input, self.age_months_input, self.age_days_input, self.age_hours_input,
+            self.age_mins_input, self.cause_of_death_input,
+            # Combo boxes
+            self.sex_combo, self.civil_status_combo, self.nationality_combo, self.death_place_input,
+            self.corpse_disposal_combo, self.late_reg_combo,
+            # Dates
+            self.date_of_death_input, self.date_of_reg_input,
+            # Resident combos
+            self.maasin_resident_combo, self.soleyte_resident_combo, self.leyte_resident_combo,
+        ]
+
+    def disable_form_fields(self):
+        """Disable all form input fields."""
+        for field in self.get_form_fields():
+            field.setEnabled(False)
+
+    def enable_form_fields(self):
+        """Enable all form input fields."""
+        for field in self.get_form_fields():
+            field.setEnabled(True)
 
     def _update_label_colors(self, background_color=None):
         """Update background colors of all labels in form_area."""
@@ -1072,24 +1122,42 @@ class DeathTaggingWindow(QWidget):
             label.setPalette(palette)
 
     def set_saved_cue(self, enabled):
-        """Toggle blue saved border on all fields."""
-        # for widget in self.get_form_fields():
-        #     widget.setProperty("saved", True if enabled else False)
-        #     # Re-polish to apply dynamic property stylesheet
-        #     widget.style().unpolish(widget)
-        #     widget.style().polish(widget)
-        #     widget.update()
-        if hasattr(self, 'form_area') and self.form_area is not None:
-            self.form_area.setProperty("saved", True if enabled else False)
-            self.form_area.style().unpolish(self.form_area)
-            self.form_area.style().polish(self.form_area)
-            self.form_area.update()
-            
-            # Update label colors
-            if enabled:
-                self._update_label_colors(QColor("#e0e7ff"))  # Light blue
-            else:
-                self._update_label_colors(Qt.white)
+        """Manage field state and button states when tags are saved or deleted."""
+        # Update label colors to white (no background color changes)
+        self._update_label_colors(Qt.white)
+        
+        # Update field and button state
+        if enabled:
+            # Disable all fields after saving
+            self.disable_form_fields()
+            # Disable Save button, enable Edit and Delete buttons
+            if hasattr(self, 'save_btn'):
+                self.save_btn.setEnabled(False)
+            if hasattr(self, 'delete_btn'):
+                self.delete_btn.setEnabled(True)
+            if hasattr(self, 'edit_btn'):
+                self.edit_btn.setEnabled(True)
+        else:
+            # Enable all fields for editing (no tags yet or after deletion)
+            self.enable_form_fields()
+            # Enable Save button, disable Edit and Delete buttons when no tags
+            if hasattr(self, 'save_btn'):
+                self.save_btn.setEnabled(True)
+            if hasattr(self, 'delete_btn'):
+                self.delete_btn.setEnabled(False)
+            if hasattr(self, 'edit_btn'):
+                self.edit_btn.setEnabled(False)
+
+    def on_edit_clicked(self):
+        """Enable form fields when Edit button is clicked."""
+        self.enable_form_fields()
+        # Enable Save button for re-saving edited tags
+        if hasattr(self, 'save_btn'):
+            self.save_btn.setEnabled(True)
+        # Keep Delete button enabled since tags still exist
+        if hasattr(self, 'delete_btn'):
+            self.delete_btn.setEnabled(True)
+        self.edit_btn.setEnabled(False)
 
 
 # if __name__ == "__main__":

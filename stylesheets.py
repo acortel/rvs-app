@@ -164,7 +164,7 @@ date_picker_style = """
                 color: #aaaaaa;         /* Disabled (greyed-out) days */
             }
             QDateEdit:disabled {
-                background-color: #F0F0F0;
+                background-color: #fef2f4;
                 color: #9E9E9E;
                 border: 1px solid #CCCCCC;
             }
@@ -209,5 +209,10 @@ combo_box_style = """
             QComboBox::item:selected {
                 background-color: #ce305e;
                 color: #FFFFFF;
+            }
+            QComboBox:disabled {
+                background-color: #fef2f4;
+                color: #9E9E9E;
+                border: 1px solid #CCCCCC;
             }
         """
