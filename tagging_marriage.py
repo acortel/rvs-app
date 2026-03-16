@@ -824,7 +824,7 @@ class MarriageTaggingWindow(QWidget):
                 husb_civil_status = self.husband_civil_status_combo.currentText()
                 wife_civil_status = self.wife_civil_status_combo.currentText()
                 ceremony_type = self.ceremony_type_combo.currentText()
-                late_registration = self.late_reg_combo.currentText() == "Yes"
+                late_registration = self.late_reg_combo.currentText().strip().lower() == "yes"
 
                 cursor.execute("""
                     INSERT INTO marriage_index (

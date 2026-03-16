@@ -14322,3 +14322,23 @@ requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://w
  * Running on http://127.0.0.1:5000
  * Running on http://192.168.254.108:5000
 [2026-02-16 09:48:24,964] INFO in _internal: [33mPress CTRL+C to quit[0m
+[2026-03-16 13:44:24,471] DEBUG in connectionpool: Starting new HTTPS connection (1): api.ipify.org:443
+[2026-03-16 13:44:25,747] DEBUG in connectionpool: https://api.ipify.org:443 "GET /?format=text HTTP/1.1" 200 13
+[2026-03-16 13:44:25,748] INFO in app: Server Public IP: 216.247.32.26
+[2026-03-16 13:44:26,416] DEBUG in __init__: CACHEDIR=C:\Users\ThisPC\.matplotlib
+[2026-03-16 13:44:26,421] DEBUG in font_manager: Using fontManager instance from C:\Users\ThisPC\.matplotlib\fontlist-v390.json
+[2026-03-16 13:44:27,121] INFO in _internal: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.108:5000
+[2026-03-16 13:44:27,121] INFO in _internal: [33mPress CTRL+C to quit[0m
+[2026-03-16 13:47:42,587] DEBUG in connectionpool: Starting new HTTPS connection (1): api.ipify.org:443
+[2026-03-16 13:47:43,382] DEBUG in connectionpool: https://api.ipify.org:443 "GET /?format=text HTTP/1.1" 200 13
+[2026-03-16 13:47:43,384] INFO in app: Server Public IP: 216.247.32.26
+[2026-03-16 13:47:43,612] DEBUG in __init__: CACHEDIR=C:\Users\ThisPC\.matplotlib
+[2026-03-16 13:47:43,614] DEBUG in font_manager: Using fontManager instance from C:\Users\ThisPC\.matplotlib\fontlist-v390.json
+[2026-03-16 13:47:44,017] INFO in _internal: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.108:5000
+[2026-03-16 13:47:44,017] INFO in _internal: [33mPress CTRL+C to quit[0m

@@ -809,7 +809,7 @@ class DeathTaggingWindow(QWidget):
                 civil_status = self.civil_status_combo.currentText()
                 nationality = self.nationality_combo.currentText()
                 corpse_disposal = self.corpse_disposal_combo.currentText()
-                late_registration = self.late_reg_combo.currentText() == "Yes"
+                late_registration = self.late_reg_combo.currentText().strip().lower() == "yes"
                 
                 # Get resident values
                 maasin_resident = self.maasin_resident_combo.currentText().strip().lower() == "yes"
