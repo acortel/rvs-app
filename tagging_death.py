@@ -673,7 +673,7 @@ class DeathTaggingWindow(QWidget):
                 self.nationality_combo.setCurrentText(nationality if nationality else "")
                 self.death_place_input.setCurrentText(place_of_death if place_of_death else "")
                 self.corpse_disposal_combo.setCurrentText(corpse_disposal if corpse_disposal else "")
-                self.late_reg_combo.setCurrentText("Yes" if late_registration else "No")
+                self.late_reg_combo.setCurrentText("YES" if late_registration is True else "NO")
 
                 # Set resident combo boxes
                 self.maasin_resident_combo.setCurrentText("YES" if maasin_resident is True else "NO")

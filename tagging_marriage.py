@@ -694,7 +694,7 @@ class MarriageTaggingWindow(QWidget):
                 self.husband_civil_status_combo.setCurrentText(husb_civil_status if husb_civil_status else "")
                 self.wife_civil_status_combo.setCurrentText(wife_civil_status if wife_civil_status else "")
                 self.ceremony_type_combo.setCurrentText(ceremony_type if ceremony_type else "")
-                self.late_reg_combo.setCurrentText("Yes" if late_registration else "No")
+                self.late_reg_combo.setCurrentText("YES" if late_registration is True else "NO")
 
                 # Handle dates
                 if date_of_marriage:
