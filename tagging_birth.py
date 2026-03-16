@@ -740,14 +740,15 @@ class BirthTaggingWindow(QWidget):
                 else:
                     self.date_of_reg_input.setDate(QDate.currentDate())
 
-                # Handle marriage place and date
-                if parents_marriage_place:
-                    self.marriage_place_input.setCurrentText(parents_marriage_place)
-                else:
-                    self.marriage_place_input.clearEditText()
-                    self.marriage_place_input.setCurrentIndex(0)
-                    self.marriage_place_input.setEditText(self.marriage_place_input.itemText(0))
-                
+                # # Handle marriage place and date
+                # if parents_marriage_place:
+                #     self.marriage_place_input.setCurrentText(parents_marriage_place)
+                # else:
+                #     self.marriage_place_input.clearEditText()
+                #     self.marriage_place_input.setCurrentIndex(0)
+                #     self.marriage_place_input.setEditText(self.marriage_place_input.itemText(0))
+
+                self.marriage_place_input.setCurrentText(parents_marriage_place)
                 if parents_marriage_date:
                     self.date_of_marriage_input.setDate(QDate.fromString(parents_marriage_date.strftime("%Y-%m-%d"), "yyyy-MM-dd"))
                     self.date_of_marriage_input.setEnabled(True)
@@ -864,14 +865,16 @@ class BirthTaggingWindow(QWidget):
                 nationality_father = self.father_nationality_combo.currentText() if self.father_name_input.text() != "" else None
                 type_of_birth = self.type_of_birth_combo.currentText()
                 
-                # Handle marriage date based on marriage place
-                if self.marriage_place_input.currentText() in ["NOT MARRIED", "FORGOTTEN", "DON'T KNOW", "NOT APPLICABLE"]:
-                    parents_marriage_date = None
-                    parents_marriage_place = None
-                else:
-                    parents_marriage_date = self.date_of_marriage_input.date().toString("yyyy-MM-dd")
-                    parents_marriage_place = self.marriage_place_input.currentText()
+                # # Handle marriage date based on marriage place
+                # if self.marriage_place_input.currentText() in ["NOT MARRIED", "FORGOTTEN", "DON'T KNOW", "NOT APPLICABLE"]:
+                #     parents_marriage_date = None
+                #     parents_marriage_place = None
+                # else:
+                #     parents_marriage_date = self.date_of_marriage_input.date().toString("yyyy-MM-dd")
+                #     parents_marriage_place = self.marriage_place_input.currentText()
 
+                parents_marriage_date = self.date_of_marriage_input.date().toString("yyyy-MM-dd")
+                parents_marriage_place = self.marriage_place_input.currentText()
                 attendant = self.attendant_combo.currentText()
                 late_registration = self.late_reg_combo.currentText().strip().lower() == "yes"
                 
