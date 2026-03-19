@@ -227,7 +227,7 @@ class BirthTaggingWindow(QWidget):
         mother_name_container = QVBoxLayout()
         self.mother_name_input = QLineEdit()
         self.mother_name_input.setPlaceholderText("Name of Mother")
-        self.mother_name_input.setFixedWidth(450)
+        self.mother_name_input.setFixedWidth(350)
         mother_name_container.addWidget(self._create_label("Name of Mother:"))
         mother_name_container.addWidget(self.mother_name_input)
         mother_info_layout.addLayout(mother_name_container)
@@ -253,6 +253,14 @@ class BirthTaggingWindow(QWidget):
         mother_nat_container.addWidget(self._create_label("Nationality of Mother:"))
         mother_nat_container.addWidget(self.mother_nationality_combo)
         mother_info_layout.addLayout(mother_nat_container)
+
+        mother_age_container = QVBoxLayout()
+        self.mother_age_input = QLineEdit()
+        self.mother_age_input.setPlaceholderText("Age of Mother")
+        self.mother_age_input.setFixedWidth(100)
+        mother_age_container.addWidget(self._create_label("Age of Mother:"))
+        mother_age_container.addWidget(self.mother_age_input)
+        mother_info_layout.addLayout(mother_age_container)
         form_layout.addLayout(mother_info_layout)
 
         # Resident Information
@@ -295,7 +303,7 @@ class BirthTaggingWindow(QWidget):
         father_name_container = QVBoxLayout()
         self.father_name_input = QLineEdit()
         self.father_name_input.setPlaceholderText("Name of Father")
-        self.father_name_input.setFixedWidth(450)
+        self.father_name_input.setFixedWidth(350)
         father_name_container.addWidget(self._create_label("Name of Father:"))
         father_name_container.addWidget(self.father_name_input)
         father_info_layout.addLayout(father_name_container)
@@ -321,6 +329,14 @@ class BirthTaggingWindow(QWidget):
         father_nat_container.addWidget(self._create_label("Nationality of Father:"))
         father_nat_container.addWidget(self.father_nationality_combo)
         father_info_layout.addLayout(father_nat_container)
+
+        father_age_container = QVBoxLayout()
+        self.father_age_input = QLineEdit()
+        self.father_age_input.setPlaceholderText("Age of Father")
+        self.father_age_input.setFixedWidth(100)
+        father_age_container.addWidget(self._create_label("Age of Father:"))
+        father_age_container.addWidget(self.father_age_input)
+        father_info_layout.addLayout(father_age_container)
         form_layout.addLayout(father_info_layout)
 
         # Place of Marriage and Date of Marriage
@@ -683,7 +699,7 @@ class BirthTaggingWindow(QWidget):
                     date_of_reg, place_of_birth, name_of_mother, nationality_mother,
                     name_of_father, nationality_father, parents_marriage_date,
                     parents_marriage_place, attendant, type_of_birth, late_registration,
-                    maasin_resident, soleyte_resident, leyte_resident
+                    maasin_resident, soleyte_resident, leyte_resident, mother_age, father_age
                 FROM birth_index 
                 WHERE file_path = %s
             """, (file_path,))
@@ -695,7 +711,7 @@ class BirthTaggingWindow(QWidget):
                  date_of_reg, place_of_birth, name_of_mother, nationality_mother,
                  name_of_father, nationality_father, parents_marriage_date,
                  parents_marriage_place, attendant, type_of_birth, late_registration,
-                 maasin_resident, soleyte_resident, leyte_resident) = result
+                 maasin_resident, soleyte_resident, leyte_resident, mother_age, father_age) = result
 
                 # Set QLineEdit values
                 self.page_no_input.setText(str(page_no) if page_no else "")
@@ -755,6 +771,9 @@ class BirthTaggingWindow(QWidget):
                 else:
                     self.date_of_marriage_input.setEnabled(False)
 
+                self.mother_age_input.setText(str(mother_age) if mother_age is not None else "")
+                self.father_age_input.setText(str(father_age) if father_age is not None else "")
+
                 self.set_saved_cue(True)
             
             else:
@@ -776,7 +795,8 @@ class BirthTaggingWindow(QWidget):
                 self.maasin_resident_combo.setCurrentIndex(0)
                 self.soleyte_resident_combo.setCurrentIndex(0)
                 self.leyte_resident_combo.setCurrentIndex(0)
-                
+                self.mother_age_input.clear()
+                self.father_age_input.clear()
                 self.date_of_reg_input.setDate(QDate.fromString(self.last_reg_date, "yyyy-MM-dd"))
                 self.date_of_birth_input.setDate(QDate.currentDate())
                 self.date_of_marriage_input.setDate(QDate.currentDate())
@@ -877,7 +897,8 @@ class BirthTaggingWindow(QWidget):
                 parents_marriage_place = self.marriage_place_input.currentText()
                 attendant = self.attendant_combo.currentText()
                 late_registration = self.late_reg_combo.currentText().strip().lower() == "yes"
-                
+                mother_age = int(self.mother_age_input.text()) if self.mother_age_input.text() else None
+                father_age = int(self.father_age_input.text()) if self.father_age_input.text() else None
                 # Get resident values
                 maasin_resident = self.maasin_resident_combo.currentText().strip().lower() == "yes"
                 soleyte_resident = self.soleyte_resident_combo.currentText().strip().lower() == "yes"
@@ -889,9 +910,9 @@ class BirthTaggingWindow(QWidget):
                         date_of_reg, place_of_birth, name_of_mother, nationality_mother,
                         name_of_father, nationality_father, parents_marriage_date,
                         parents_marriage_place, attendant, type_of_birth, late_registration,
-                        maasin_resident, soleyte_resident, leyte_resident
+                        maasin_resident, soleyte_resident, leyte_resident, mother_age, father_age
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     ON CONFLICT(file_path) DO UPDATE SET
                         name = EXCLUDED.name,
@@ -913,13 +934,15 @@ class BirthTaggingWindow(QWidget):
                         type_of_birth = EXCLUDED.type_of_birth,
                         maasin_resident = EXCLUDED.maasin_resident,
                         soleyte_resident = EXCLUDED.soleyte_resident,
-                        leyte_resident = EXCLUDED.leyte_resident
+                        leyte_resident = EXCLUDED.leyte_resident,
+                        mother_age = EXCLUDED.mother_age,
+                        father_age = EXCLUDED.father_age
                 """, (
                     self.selected_pdf, name, date_of_birth, sex, page_no, book_no, reg_no,
                     date_of_reg, place_of_birth, name_of_mother, nationality_mother,
                     name_of_father, nationality_father, parents_marriage_date,
                     parents_marriage_place, attendant, type_of_birth, late_registration,
-                    maasin_resident, soleyte_resident, leyte_resident
+                    maasin_resident, soleyte_resident, leyte_resident, mother_age, father_age
                 ))
 
                 AuditLogger.log_action(
@@ -1032,6 +1055,9 @@ class BirthTaggingWindow(QWidget):
             self.date_of_birth_input.setDate(QDate.currentDate())
             self.date_of_marriage_input.setDate(QDate.currentDate())
             self.date_of_marriage_input.setEnabled(False)
+            
+            self.mother_age_input.clear()
+            self.father_age_input.clear()
             
             self.set_saved_cue(False)
 
@@ -1166,6 +1192,8 @@ class BirthTaggingWindow(QWidget):
             self.date_of_birth_input, self.date_of_reg_input, self.date_of_marriage_input,
             # Resident combos
             self.maasin_resident_combo, self.soleyte_resident_combo, self.leyte_resident_combo,
+            # Age inputs
+            self.mother_age_input, self.father_age_input,
         ]
 
     def disable_form_fields(self):
