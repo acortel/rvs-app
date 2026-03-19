@@ -337,15 +337,25 @@ class DeathTaggingWindow(QWidget):
 
         form_layout.addLayout(cod_layout)
 
-        # Corpse Disposal, Late Registration, and Date of Registration
+        # Attendant, Corpse Disposal, Late Registration, and Date of Registration
         final_info_layout = QHBoxLayout()
         final_info_layout.setSpacing(10)
+
+        attendant_container = QVBoxLayout()
+        self.attendant_combo = QComboBox()
+        self.attendant_combo.setEditable(True)
+        self.attendant_combo.addItems(["PHYSICIAN", "OTHER HEALTH PRACTITIONER", "NOT ATTENDED", "NOT STATED", "OTHERS"])
+        self.attendant_combo.setFixedWidth(250)
+        self.attendant_combo.setStyleSheet(combo_box_style)
+        attendant_container.addWidget(self._create_label("Attendant:"))
+        attendant_container.addWidget(self.attendant_combo)
+        final_info_layout.addLayout(attendant_container)
 
         corpse_disposal_container = QVBoxLayout()
         self.corpse_disposal_combo = QComboBox()
         self.corpse_disposal_combo.setEditable(True)
         self.corpse_disposal_combo.addItems(["BURIAL", "CREMATION"])
-        self.corpse_disposal_combo.setFixedWidth(270)
+        self.corpse_disposal_combo.setFixedWidth(150)
         self.corpse_disposal_combo.setStyleSheet(combo_box_style)
         corpse_disposal_container.addWidget(self._create_label("Corpse Disposal:"))
         corpse_disposal_container.addWidget(self.corpse_disposal_combo)
@@ -354,7 +364,7 @@ class DeathTaggingWindow(QWidget):
         late_reg_container = QVBoxLayout()
         self.late_reg_combo = QComboBox()
         self.late_reg_combo.addItems(["NO", "YES"])
-        self.late_reg_combo.setFixedWidth(200)
+        self.late_reg_combo.setFixedWidth(100)
         self.late_reg_combo.setStyleSheet(combo_box_style)
         late_reg_container.addWidget(self._create_label("Late Registration:"))
         late_reg_container.addWidget(self.late_reg_combo)
@@ -364,7 +374,7 @@ class DeathTaggingWindow(QWidget):
         self.date_of_reg_input = QDateEdit()
         self.date_of_reg_input.setCalendarPopup(True)
         self.date_of_reg_input.setDate(QDate.currentDate())
-        self.date_of_reg_input.setFixedWidth(200)
+        self.date_of_reg_input.setFixedWidth(150)
         self.date_of_reg_input.setStyleSheet(date_picker_style)
         reg_date_container.addWidget(self._create_label("Date of Registration:"))
         reg_date_container.addWidget(self.date_of_reg_input)
@@ -640,7 +650,7 @@ class DeathTaggingWindow(QWidget):
                     civil_status, nationality,
                     place_of_death, cause_of_death,
                     corpse_disposal, late_registration,
-                    maasin_resident, soleyte_resident, leyte_resident
+                    maasin_resident, soleyte_resident, leyte_resident, attendant
                 FROM death_index 
                 WHERE file_path = %s
             """, (file_path,))
@@ -653,7 +663,7 @@ class DeathTaggingWindow(QWidget):
                  civil_status, nationality,
                  place_of_death, cause_of_death,
                  corpse_disposal, late_registration,
-                 maasin_resident, soleyte_resident, leyte_resident) = result
+                 maasin_resident, soleyte_resident, leyte_resident, attendant) = result
 
                 # Set QLineEdit values
                 self.page_no_input.setText(str(page_no) if page_no else "")
@@ -691,6 +701,8 @@ class DeathTaggingWindow(QWidget):
                 else:
                     self.date_of_reg_input.setDate(QDate.currentDate())
 
+                self.attendant_combo.setCurrentText(attendant if attendant else "")
+
                 self.set_saved_cue(True)
 
             else:
@@ -718,6 +730,7 @@ class DeathTaggingWindow(QWidget):
                 
                 self.date_of_reg_input.setDate(QDate.fromString(self.last_reg_date, "yyyy-MM-dd"))
                 self.date_of_death_input.setDate(QDate.currentDate())
+                self.attendant_combo.setCurrentIndex(0)
 
                 self.set_saved_cue(False)
         finally:
@@ -816,6 +829,7 @@ class DeathTaggingWindow(QWidget):
                 soleyte_resident = self.soleyte_resident_combo.currentText().strip().lower() == "yes"
                 leyte_resident = self.leyte_resident_combo.currentText().strip().lower() == "yes"
                 
+                attendant = self.attendant_combo.currentText()
 
                 cursor.execute("""
                     INSERT INTO death_index (
@@ -823,9 +837,9 @@ class DeathTaggingWindow(QWidget):
                         date_of_reg, age_years, age_months, age_days, age_hours, age_mins,
                         civil_status, nationality,
                         place_of_death, cause_of_death, corpse_disposal, late_registration,
-                        maasin_resident, soleyte_resident, leyte_resident
+                        maasin_resident, soleyte_resident, leyte_resident, attendant
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     ON CONFLICT(file_path) DO UPDATE SET
                         name = EXCLUDED.name,
@@ -848,13 +862,14 @@ class DeathTaggingWindow(QWidget):
                         late_registration = EXCLUDED.late_registration,
                         maasin_resident = EXCLUDED.maasin_resident,
                         soleyte_resident = EXCLUDED.soleyte_resident,
-                        leyte_resident = EXCLUDED.leyte_resident
+                        leyte_resident = EXCLUDED.leyte_resident,
+                        attendant = EXCLUDED.attendant
                 """, (
                     self.selected_pdf, name, date_of_death, sex, page_no, book_no, reg_no,
                     date_of_reg, age_years, age_months, age_days, age_hours, age_mins,
                     civil_status, nationality,
                     place_of_death, cause_of_death, corpse_disposal, late_registration,
-                    maasin_resident, soleyte_resident, leyte_resident
+                    maasin_resident, soleyte_resident, leyte_resident, attendant
                 ))
 
                 AuditLogger.log_action(
@@ -965,7 +980,7 @@ class DeathTaggingWindow(QWidget):
             self.death_place_input.setCurrentIndex(0)
             self.corpse_disposal_combo.setCurrentIndex(0)
             self.late_reg_combo.setCurrentIndex(0)
-            
+            self.attendant_combo.setCurrentIndex(0)
             self.date_of_reg_input.setDate(QDate.currentDate())
             self.date_of_death_input.setDate(QDate.currentDate())
 
@@ -1093,6 +1108,8 @@ class DeathTaggingWindow(QWidget):
             self.date_of_death_input, self.date_of_reg_input,
             # Resident combos
             self.maasin_resident_combo, self.soleyte_resident_combo, self.leyte_resident_combo,
+            # Attendant combo
+            self.attendant_combo,
         ]
 
     def disable_form_fields(self):
