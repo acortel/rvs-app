@@ -866,9 +866,9 @@ class StatisticsWindow(QWidget):
             lines = [f"Breakdown of {key_name}:"]
             total = 0
             for value, count in results:
-                # Late Registration is boolean, show as Yes/No
+                # Late Registration is boolean, show as Late/Timely
                 if key_name == "Late Registration":
-                    display_value = "Yes" if value is True else "No" if value is False else "N/A"
+                    display_value = "Late" if value is True else "Timely" if value is False else "N/A"
                 else:
                     display_value = str(value) if value else "N/A"
                 lines.append(f"  {display_value}: {count}")

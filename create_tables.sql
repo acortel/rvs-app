@@ -119,6 +119,13 @@
 -- SET type_of_birth = 'SINGLE'
 -- WHERE type_of_birth = 'Single';
 
-UPDATE birth_index 
-SET type_of_birth = 'TWIN'
-WHERE type_of_birth = 'Twins';
+-- UPDATE birth_index 
+-- SET type_of_birth = 'TWIN'
+-- WHERE type_of_birth = 'Twins';
+
+-- ALTER TABLE birth_index ADD COLUMN IF NOT EXISTS mother_age INTEGER NULL;
+-- ALTER TABLE birth_index ADD COLUMN IF NOT EXISTS father_age_age INTEGER NULL;
+
+-- ALTER TABLE death_index ADD COLUMN IF NOT EXISTS attendant VARCHAR(255) NULL;
+
+ALTER TABLE birth_index RENAME COLUMN father_age_age TO father_age;
