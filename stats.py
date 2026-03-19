@@ -57,9 +57,9 @@ class StatisticsWindow(QWidget):
 
     # Breakdown mode keys per record type
     BREAKDOWN_KEYS = {
-        "Live Birth": ["All", "Sex", "Attendant", "Type of Birth", "Late Registration"],
-        "Death": ["All", "Sex", "Civil Status", "Attendant", "Corpse Disposal", "Late Registration"],
-        "Marriage": ["All", "Husband Civil Status", "Wife Civil Status", "Ceremony Type", "Late Registration"],
+        "Live Birth": ["All", "Monthly Totals", "Sex", "Attendant", "Type of Birth", "Late Registration"],
+        "Death": ["All", "Monthly Totals", "Sex", "Civil Status", "Attendant", "Corpse Disposal", "Late Registration"],
+        "Marriage": ["All", "Monthly Totals", "Husband Civil Status", "Wife Civil Status", "Ceremony Type", "Late Registration"],
     }
 
     # Total count mode keys per record type
@@ -418,12 +418,14 @@ class StatisticsWindow(QWidget):
         """)
         left_layout.addWidget(result_label)
 
-        self.result_display = QLabel("Ready", self)
+        # Use a scrollable read-only text area for long outputs
+        self.result_display = QTextEdit("Ready", self)
+        self.result_display.setReadOnly(True)
         self.result_display.setStyleSheet("""
-            QLabel {
+            QTextEdit {
                 font-size: 12px;
                 color: #212121;
-                padding: 15px;
+                padding: 10px;
                 border: 1px solid #D1D0D0;
                 border-radius: 4px;
                 background-color: #FAFAFA;
@@ -431,8 +433,6 @@ class StatisticsWindow(QWidget):
                 max-height: 200px;
             }
         """)
-        self.result_display.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        self.result_display.setWordWrap(True)
         left_layout.addWidget(self.result_display)
 
         # Add spacer to push content to top
@@ -668,7 +668,7 @@ class StatisticsWindow(QWidget):
                         {"mode": "breakdown", "record_type": record_type, "key": primary_key}
                     )
                     conn.commit()
-                    self.result_display.setText("No data found for the selected criteria.")
+                    self.result_display.setPlainText("No data found for the selected criteria.")
             else:  # Total Count mode
                 # Total count mode: count records based on filters
                 total_count = self._generate_total_count(
@@ -688,7 +688,7 @@ class StatisticsWindow(QWidget):
                     conn.commit()
                     self._display_total_count_result(primary_key, primary_key_value, total_count, primary_min_age, primary_max_age)
                 else:
-                    self.result_display.setText("Error generating statistics.")
+                    self.result_display.setPlainText("Error generating statistics.")
         
         except psycopg2.Error as e:
             AuditLogger.log_action(
@@ -697,7 +697,7 @@ class StatisticsWindow(QWidget):
             )
             conn.commit()
             QMessageBox.critical(self, "Database Error", f"An error occurred: {str(e)}")
-            self.result_display.setText("Error")
+            self.result_display.setPlainText("Error")
         
         finally:
             self.closeConnection()
@@ -712,6 +712,13 @@ class StatisticsWindow(QWidget):
                 base_where = f'DATE("{date_field}") BETWEEN %s::date AND %s::date'
                 params = [start_date, end_date]
                 query = f'SELECT COUNT(*) as count FROM "{table}" WHERE {base_where}'
+            elif primary_key == "Monthly Totals":
+                base_where = f'DATE("{date_field}") BETWEEN %s::date AND %s::date'
+                params = [start_date, end_date]
+                query = (
+                    f'SELECT date_trunc(\'month\', "{date_field}") AS month, '
+                    f'COUNT(*) as count FROM "{table}" WHERE {base_where}'
+                )
             else:
                 # Breakdown by primary key
                 primary_column = self.KEY_COLUMN_MAP.get(primary_key)
@@ -753,8 +760,11 @@ class StatisticsWindow(QWidget):
             
             # Add GROUP BY for non-All case
             if primary_key != "All":
-                primary_column = self.KEY_COLUMN_MAP.get(primary_key)
-                query += f' GROUP BY "{primary_column}" ORDER BY count DESC'
+                if primary_key == "Monthly Totals":
+                    query += " GROUP BY month ORDER BY month ASC"
+                else:
+                    primary_column = self.KEY_COLUMN_MAP.get(primary_key)
+                    query += f' GROUP BY "{primary_column}" ORDER BY count DESC'
             
             cursor.execute(query, params)
             results = cursor.fetchall()
@@ -854,7 +864,7 @@ class StatisticsWindow(QWidget):
     def _display_breakdown_results(self, results, key_name):
         """Display breakdown results in the result display widget."""
         if not results:
-            self.result_display.setText("No results")
+            self.result_display.setPlainText("No results")
             return
         
         if key_name == "All":
@@ -870,6 +880,11 @@ class StatisticsWindow(QWidget):
                 # Late Registration is boolean, show as Late/Timely
                 if key_name == "Late Registration":
                     display_value = "Late" if value is True else "Timely" if value is False else "N/A"
+                elif key_name == "Monthly Totals":
+                    try:
+                        display_value = value.strftime("%B")
+                    except Exception:
+                        display_value = str(value) if value else "N/A"
                 elif key_name == "Attendant":
                     allowed_attendants = {
                         "PHYSICIAN",
@@ -895,7 +910,7 @@ class StatisticsWindow(QWidget):
             lines.append(f"\nTotal: {total}")
             text = "\n".join(lines)
         
-        self.result_display.setText(text)
+        self.result_display.setPlainText(text)
 
     def _display_total_count_result(self, key_name, key_value, total_count, min_age=None, max_age=None):
         """Display total count result in the result display widget."""
@@ -907,7 +922,7 @@ class StatisticsWindow(QWidget):
         else:
             text = f"{key_name}: {key_value}\nTotal Count: {total_count}"
         
-        self.result_display.setText(text)
+        self.result_display.setPlainText(text)
 
 
     def export_pdf_report(self):
@@ -918,7 +933,7 @@ class StatisticsWindow(QWidget):
         date_range_type = self.date_range_type_dropdown.currentText()
         
         # Get the current result text
-        result_text = self.result_display.text()
+        result_text = self.result_display.toPlainText()
         if "Ready" in result_text or result_text == "Error":
             QMessageBox.information(self, "Export PDF", "Please generate statistics first before exporting.")
             return
