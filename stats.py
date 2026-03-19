@@ -58,21 +58,21 @@ class StatisticsWindow(QWidget):
     # Breakdown mode keys per record type
     BREAKDOWN_KEYS = {
         "Live Birth": ["All", "Sex", "Attendant", "Type of Birth", "Late Registration"],
-        "Death": ["All", "Sex", "Civil Status", "Corpse Disposal", "Late Registration"],
+        "Death": ["All", "Sex", "Civil Status", "Attendant", "Corpse Disposal", "Late Registration"],
         "Marriage": ["All", "Husband Civil Status", "Wife Civil Status", "Ceremony Type", "Late Registration"],
     }
 
     # Total count mode keys per record type
     TOTAL_COUNT_KEYS = {
         "Live Birth": ["All", "Name", "Sex", "Place of Birth", "Name of Mother", "Name of Father", "Nationality of Mother", "Nationality of Father", "Attendant", "Type of Birth", "Late Registration", "Maasin Residents", "SoLeyte Residents (Excl. Maasin)", "SoLeyte Residents (Incl. Maasin)", "Leyte Residents", "Residents outside Leyte"],
-        "Death": ["All", "Name", "Sex", "Age", "Civil Status", "Nationality", "Place of Death", "Cause of Death", "Corpse Disposal", "Late Registration", "Maasin Residents", "SoLeyte Residents (Excl. Maasin)", "SoLeyte Residents (Incl. Maasin)", "Leyte Residents", "Residents outside Leyte"],
+        "Death": ["All", "Name", "Sex", "Age", "Civil Status", "Nationality", "Place of Death", "Cause of Death", "Attendant", "Corpse Disposal", "Late Registration", "Maasin Residents", "SoLeyte Residents (Excl. Maasin)", "SoLeyte Residents (Incl. Maasin)", "Leyte Residents", "Residents outside Leyte"],
         "Marriage": ["All", "Husband Name", "Husband Age", "Husband Civil Status", "Husband Nationality", "Wife Name", "Wife Age", "Wife Civil Status", "Wife Nationality", "Place of Marriage", "Ceremony Type", "Late Registration"],
     }
 
     # Secondary filter keys (all available filters)
     SECONDARY_FILTER_KEYS = {
         "Live Birth": ["None", "Sex", "Place of Birth", "Name of Mother", "Name of Father", "Nationality of Mother", "Nationality of Father", "Attendant", "Type of Birth", "Maasin Residents", "SoLeyte Residents (Excl. Maasin)", "SoLeyte Residents (Incl. Maasin)", "Leyte Residents", "Residents outside Leyte"],
-        "Death": ["None", "Sex", "Age", "Civil Status", "Nationality", "Place of Death", "Cause of Death", "Corpse Disposal", "Maasin Residents", "SoLeyte Residents (Excl. Maasin)", "SoLeyte Residents (Incl. Maasin)", "Leyte Residents", "Residents outside Leyte"],
+        "Death": ["None", "Sex", "Age", "Civil Status", "Nationality", "Place of Death", "Cause of Death", "Attendant", "Corpse Disposal", "Maasin Residents", "SoLeyte Residents (Excl. Maasin)", "SoLeyte Residents (Incl. Maasin)", "Leyte Residents", "Residents outside Leyte"],
         "Marriage": ["None", "Husband Name", "Husband Age", "Husband Civil Status", "Husband Nationality", "Wife Name", "Wife Age", "Wife Civil Status", "Wife Nationality", "Place of Marriage", "Ceremony Type"],
     }
 
@@ -865,14 +865,33 @@ class StatisticsWindow(QWidget):
             # Show breakdown for other keys
             lines = [f"Breakdown of {key_name}:"]
             total = 0
+            others_count = 0
             for value, count in results:
                 # Late Registration is boolean, show as Late/Timely
                 if key_name == "Late Registration":
                     display_value = "Late" if value is True else "Timely" if value is False else "N/A"
+                elif key_name == "Attendant":
+                    allowed_attendants = {
+                        "PHYSICIAN",
+                        "MIDWIFE",
+                        "HILOT",
+                        "DON'T KNOW",
+                        "OTHER HEALTH PRACTITIONER",
+                        "NOT ATTENDED",
+                        "NOT STATED",
+                    }
+                    if value in allowed_attendants:
+                        display_value = value
+                    else:
+                        others_count += count
+                        total += count
+                        continue
                 else:
                     display_value = str(value) if value else "N/A"
                 lines.append(f"  {display_value}: {count}")
                 total += count
+            if key_name == "Attendant" and others_count:
+                lines.append(f"  OTHERS: {others_count}")
             lines.append(f"\nTotal: {total}")
             text = "\n".join(lines)
         
