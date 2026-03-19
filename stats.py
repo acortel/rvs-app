@@ -16,6 +16,14 @@ from stylesheets import *
 
 
 class StatisticsWindow(QWidget):
+    AGE_RANGE_BREAKDOWN_KEYS = {
+        "Mother Age (Youngest/Oldest)",
+        "Father Age (Youngest/Oldest)",
+        "Age (Youngest/Oldest)",
+        "Husband Age (Youngest/Oldest)",
+        "Wife Age (Youngest/Oldest)",
+    }
+
     # Key to column mapping - centralized to avoid duplication
     KEY_COLUMN_MAP = {
         # Live Birth
@@ -29,6 +37,8 @@ class StatisticsWindow(QWidget):
         "Attendant": "attendant",
         "Late Registration": "late_registration",
         "Type of Birth": "type_of_birth",
+        "Mother Age": "mother_age",
+        "Father Age": "father_age",
         # Death
         "Age": "age_years",
         "Civil Status": "civil_status",
@@ -41,10 +51,12 @@ class StatisticsWindow(QWidget):
         "Husband Age": "husband_age",
         "Husband Civil Status": "husb_civil_status",
         "Husband Nationality": "husb_nationality",
+        "Nationality of Husband": "husb_nationality",
         "Wife Name": "wife_name",
         "Wife Age": "wife_age",
         "Wife Civil Status": "wife_civil_status",
         "Wife Nationality": "wife_nationality",
+        "Nationality of Wife": "wife_nationality",
         "Place of Marriage": "place_of_marriage",
         "Ceremony Type": "ceremony_type",
         # Resident filters
@@ -57,9 +69,9 @@ class StatisticsWindow(QWidget):
 
     # Breakdown mode keys per record type
     BREAKDOWN_KEYS = {
-        "Live Birth": ["All", "Monthly Totals", "Sex", "Attendant", "Type of Birth", "Late Registration"],
-        "Death": ["All", "Monthly Totals", "Sex", "Civil Status", "Attendant", "Corpse Disposal", "Late Registration"],
-        "Marriage": ["All", "Monthly Totals", "Husband Civil Status", "Wife Civil Status", "Ceremony Type", "Late Registration"],
+        "Live Birth": ["All", "Monthly Totals", "Sex", "Place of Birth", "Nationality of Mother", "Nationality of Father", "Mother Age (Youngest/Oldest)", "Father Age (Youngest/Oldest)", "Legitimate", "Attendant", "Type of Birth", "Late Registration"],
+        "Death": ["All", "Monthly Totals", "Sex", "Civil Status", "Nationality", "Age (Youngest/Oldest)", "Place of Death", "Attendant", "Corpse Disposal", "Late Registration"],
+        "Marriage": ["All", "Monthly Totals", "Husband Civil Status", "Wife Civil Status", "Nationality of Husband", "Nationality of Wife", "Husband Age (Youngest/Oldest)", "Wife Age (Youngest/Oldest)", "Ceremony Type", "Late Registration"],
     }
 
     # Total count mode keys per record type
@@ -429,7 +441,7 @@ class StatisticsWindow(QWidget):
                 border: 1px solid #D1D0D0;
                 border-radius: 4px;
                 background-color: #FAFAFA;
-                min-height: 60px;
+                min-height: 100px;
                 max-height: 200px;
             }
         """)
@@ -719,6 +731,35 @@ class StatisticsWindow(QWidget):
                     f'SELECT date_trunc(\'month\', "{date_field}") AS month, '
                     f'COUNT(*) as count FROM "{table}" WHERE {base_where}'
                 )
+            elif primary_key == "Legitimate":
+                base_where = f'DATE("{date_field}") BETWEEN %s::date AND %s::date'
+                params = [start_date, end_date]
+                query = (
+                    f"SELECT CASE "
+                    f"WHEN parents_marriage_date IS NULL THEN 'ILLEGITIMATE' "
+                    f"ELSE 'LEGITIMATE' END AS legitimacy, "
+                    f'COUNT(*) as count FROM "{table}" WHERE {base_where}'
+                )
+            elif primary_key in self.AGE_RANGE_BREAKDOWN_KEYS:
+                base_where = f'DATE("{date_field}") BETWEEN %s::date AND %s::date'
+                params = [start_date, end_date]
+
+                age_column_map = {
+                    "Mother Age (Youngest/Oldest)": "mother_age",
+                    "Father Age (Youngest/Oldest)": "father_age",
+                    "Age (Youngest/Oldest)": "age_years",
+                    "Husband Age (Youngest/Oldest)": "husband_age",
+                    "Wife Age (Youngest/Oldest)": "wife_age",
+                }
+                age_column = age_column_map.get(primary_key)
+                if not age_column or not all(c.isalnum() or c == '_' for c in age_column):
+                    return None
+
+                base_where += f' AND "{age_column}" IS NOT NULL'
+                query = (
+                    f'SELECT MIN("{age_column}") as min_age, MAX("{age_column}") as max_age '
+                    f'FROM "{table}" WHERE {base_where}'
+                )
             else:
                 # Breakdown by primary key
                 primary_column = self.KEY_COLUMN_MAP.get(primary_key)
@@ -762,6 +803,11 @@ class StatisticsWindow(QWidget):
             if primary_key != "All":
                 if primary_key == "Monthly Totals":
                     query += " GROUP BY month ORDER BY month ASC"
+                elif primary_key == "Legitimate":
+                    query += " GROUP BY legitimacy ORDER BY count DESC"
+                elif primary_key in self.AGE_RANGE_BREAKDOWN_KEYS:
+                    # MIN/MAX query: no grouping or ordering needed
+                    pass
                 else:
                     primary_column = self.KEY_COLUMN_MAP.get(primary_key)
                     query += f' GROUP BY "{primary_column}" ORDER BY count DESC'
@@ -772,6 +818,9 @@ class StatisticsWindow(QWidget):
             if primary_key == "All":
                 # Convert single total to list format
                 return [(None, results[0][0])] if results else []
+            if primary_key in self.AGE_RANGE_BREAKDOWN_KEYS:
+                min_age, max_age = results[0] if results else (None, None)
+                return [("Youngest", min_age), ("Oldest", max_age)]
             return results
         
         except Exception as e:
@@ -871,6 +920,12 @@ class StatisticsWindow(QWidget):
             # Just show total
             total = results[0][1] if results else 0
             text = f"Total {self.record_type_dropdown.currentText()} Records: {total}"
+        elif key_name in self.AGE_RANGE_BREAKDOWN_KEYS:
+            lines = [f"Breakdown of {key_name}:"]
+            for label, age in results:
+                display_age = "N/A" if age is None else str(age)
+                lines.append(f"  {label}: {display_age}")
+            text = "\n".join(lines)
         else:
             # Show breakdown for other keys
             lines = [f"Breakdown of {key_name}:"]
@@ -885,6 +940,32 @@ class StatisticsWindow(QWidget):
                         display_value = value.strftime("%B")
                     except Exception:
                         display_value = str(value) if value else "N/A"
+                elif key_name == "Place of Birth":
+                    allowed_places_of_birth = {
+                        "SALVACION OPPUS YÑIGUEZ MEMORIAL PROVINCIAL HOSPITAL",
+                        "MAASIN MEDCITY HOSPITAL",
+                        "LIVINGHOPE HOSPITAL, INC.",
+                        "CM MATERNITY CLINIC",
+                    }
+                    if value in allowed_places_of_birth:
+                        display_value = value
+                    else:
+                        others_count += count
+                        total += count
+                        continue
+                elif key_name == "Place of Death":
+                    allowed_places_of_death = {
+                        "SALVACION OPPUS YÑIGUEZ MEMORIAL PROVINCIAL HOSPITAL",
+                        "MAASIN MEDCITY HOSPITAL",
+                        "LIVINGHOPE HOSPITAL, INC.",
+                        "CM MATERNITY CLINIC",
+                    }
+                    if value in allowed_places_of_death:
+                        display_value = value
+                    else:
+                        others_count += count
+                        total += count
+                        continue
                 elif key_name == "Attendant":
                     allowed_attendants = {
                         "PHYSICIAN",
@@ -907,6 +988,8 @@ class StatisticsWindow(QWidget):
                 total += count
             if key_name == "Attendant" and others_count:
                 lines.append(f"  OTHERS: {others_count}")
+            if key_name in {"Place of Birth", "Place of Death"} and others_count:
+                lines.append(f"  AT RESIDENCE OR OTHERS: {others_count}")
             lines.append(f"\nTotal: {total}")
             text = "\n".join(lines)
         

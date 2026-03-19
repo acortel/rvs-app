@@ -885,16 +885,13 @@ class BirthTaggingWindow(QWidget):
                 nationality_father = self.father_nationality_combo.currentText() if self.father_name_input.text() != "" else None
                 type_of_birth = self.type_of_birth_combo.currentText()
                 
-                # # Handle marriage date based on marriage place
-                # if self.marriage_place_input.currentText() in ["NOT MARRIED", "FORGOTTEN", "DON'T KNOW", "NOT APPLICABLE"]:
-                #     parents_marriage_date = None
-                #     parents_marriage_place = None
-                # else:
-                #     parents_marriage_date = self.date_of_marriage_input.date().toString("yyyy-MM-dd")
-                #     parents_marriage_place = self.marriage_place_input.currentText()
-
-                parents_marriage_date = self.date_of_marriage_input.date().toString("yyyy-MM-dd")
+                # Handle marriage date based on marriage place
                 parents_marriage_place = self.marriage_place_input.currentText()
+                if self.marriage_place_input.currentText() in ["NOT MARRIED", "FORGOTTEN", "DON'T KNOW", "NOT APPLICABLE"]:
+                    parents_marriage_date = None
+                else:
+                    parents_marriage_date = self.date_of_marriage_input.date().toString("yyyy-MM-dd")
+                
                 attendant = self.attendant_combo.currentText()
                 late_registration = self.late_reg_combo.currentText().strip().lower() == "yes"
                 mother_age = int(self.mother_age_input.text()) if self.mother_age_input.text() else None
