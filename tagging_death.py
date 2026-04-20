@@ -79,6 +79,7 @@ class DeathTaggingWindow(QWidget):
         self.last_book_no = None
         self.settings = QSettings("OCCR", "RVS")
         self.pending_select_pdf = None
+        self._initial_show = True
 
         self.init_ui()
     
@@ -253,14 +254,14 @@ class DeathTaggingWindow(QWidget):
 
         form_layout.addLayout(death_info_layout)
 
-        # Civil Status and Nationality
+        # Civil Status, Nationality, Residence
         cs_nat_layout = QHBoxLayout()
         cs_nat_layout.setSpacing(10)
 
         cs_container = QVBoxLayout()
         self.civil_status_combo = QComboBox()
         self.civil_status_combo.addItems(["SINGLE", "MARRIED", "WIDOW", "WIDOWER", "DIVORCED", "ANNULLED"])
-        self.civil_status_combo.setFixedWidth(300)
+        self.civil_status_combo.setFixedWidth(100)
         self.civil_status_combo.setStyleSheet(combo_box_style)
         cs_container.addWidget(self._create_label("Civil Status:"))
         cs_container.addWidget(self.civil_status_combo)
@@ -282,11 +283,19 @@ class DeathTaggingWindow(QWidget):
             "INDONESIAN",
             "VIETNAMESE",
         ])
-        self.nationality_combo.setFixedWidth(350)
+        self.nationality_combo.setFixedWidth(150)
         self.nationality_combo.setStyleSheet(combo_box_style)
         nat_container.addWidget(self._create_label("Nationality:"))
         nat_container.addWidget(self.nationality_combo)
         cs_nat_layout.addLayout(nat_container)
+
+        residence_container = QVBoxLayout()
+        self.residence_input = QLineEdit()
+        self.residence_input.setPlaceholderText("Residence")
+        self.residence_input.setFixedWidth(350)
+        residence_container.addWidget(self._create_label("Residence:"))
+        residence_container.addWidget(self.residence_input)
+        cs_nat_layout.addLayout(residence_container)
 
         form_layout.addLayout(cs_nat_layout)
 
@@ -650,7 +659,7 @@ class DeathTaggingWindow(QWidget):
                     civil_status, nationality,
                     place_of_death, cause_of_death,
                     corpse_disposal, late_registration,
-                    maasin_resident, soleyte_resident, leyte_resident, attendant
+                    maasin_resident, soleyte_resident, leyte_resident, attendant, residence
                 FROM death_index 
                 WHERE file_path = %s
             """, (file_path,))
@@ -663,7 +672,7 @@ class DeathTaggingWindow(QWidget):
                  civil_status, nationality,
                  place_of_death, cause_of_death,
                  corpse_disposal, late_registration,
-                 maasin_resident, soleyte_resident, leyte_resident, attendant) = result
+                 maasin_resident, soleyte_resident, leyte_resident, attendant, residence) = result
 
                 # Set QLineEdit values
                 self.page_no_input.setText(str(page_no) if page_no else "")
@@ -673,6 +682,7 @@ class DeathTaggingWindow(QWidget):
                 self.age_input.setText(str(age_years) if age_years is not None else "")
                 self.age_months_input.setText(str(age_months) if age_months is not None else "")
                 self.age_days_input.setText(str(age_days) if age_days is not None else "")
+                self.residence_input.setText(residence if residence else "")
                 self.age_hours_input.setText(str(age_hours) if age_hours is not None else "")
                 self.age_mins_input.setText(str(age_mins) if age_mins is not None else "")
                 self.cause_of_death_input.setText(cause_of_death if cause_of_death else "")
@@ -717,7 +727,8 @@ class DeathTaggingWindow(QWidget):
                 self.age_days_input.clear()
                 self.age_hours_input.clear()
                 self.age_mins_input.clear()
-                
+                self.residence_input.clear()
+
                 self.sex_combo.setCurrentIndex(0)
                 self.civil_status_combo.setCurrentIndex(0)
                 self.nationality_combo.setCurrentIndex(0)
@@ -805,6 +816,7 @@ class DeathTaggingWindow(QWidget):
                 book_no = int(self.book_no_input.text()) if self.book_no_input.text() else None
                 reg_no = self.reg_no_input.text()
                 name = self.name_input.text()
+                residence = self.residence_input.text()
                 
                 def parse_int(text):
                     return int(text) if text and text.isdigit() else None
@@ -837,9 +849,9 @@ class DeathTaggingWindow(QWidget):
                         date_of_reg, age_years, age_months, age_days, age_hours, age_mins,
                         civil_status, nationality,
                         place_of_death, cause_of_death, corpse_disposal, late_registration,
-                        maasin_resident, soleyte_resident, leyte_resident, attendant
+                        maasin_resident, soleyte_resident, leyte_resident, attendant, residence
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     ON CONFLICT(file_path) DO UPDATE SET
                         name = EXCLUDED.name,
@@ -863,13 +875,14 @@ class DeathTaggingWindow(QWidget):
                         maasin_resident = EXCLUDED.maasin_resident,
                         soleyte_resident = EXCLUDED.soleyte_resident,
                         leyte_resident = EXCLUDED.leyte_resident,
-                        attendant = EXCLUDED.attendant
+                        attendant = EXCLUDED.attendant,
+                        residence = EXCLUDED.residence
                 """, (
                     self.selected_pdf, name, date_of_death, sex, page_no, book_no, reg_no,
                     date_of_reg, age_years, age_months, age_days, age_hours, age_mins,
                     civil_status, nationality,
                     place_of_death, cause_of_death, corpse_disposal, late_registration,
-                    maasin_resident, soleyte_resident, leyte_resident, attendant
+                    maasin_resident, soleyte_resident, leyte_resident, attendant, residence
                 ))
 
                 AuditLogger.log_action(
@@ -973,6 +986,7 @@ class DeathTaggingWindow(QWidget):
             self.age_hours_input.clear()
             self.age_mins_input.clear()
             self.cause_of_death_input.clear()
+            self.residence_input.clear()
             
             self.sex_combo.setCurrentIndex(0)
             self.civil_status_combo.setCurrentIndex(0)
@@ -1044,13 +1058,16 @@ class DeathTaggingWindow(QWidget):
         super().showEvent(event)
         conn = self.create_connection()
         try:
-            # attempt to restore last session state
-            last_folder = self.settings.value("death/last_folder", type=str)
-            last_pdf = self.settings.value("death/last_pdf", type=str)
-            if last_folder and os.path.isdir(last_folder):
-                if last_pdf and os.path.isfile(last_pdf):
-                    self.pending_select_pdf = last_pdf
-                self.load_pdfs(last_folder)
+            # Only restore session state on initial window show, not on minimize/restore
+            if self._initial_show:
+                # attempt to restore last session state
+                last_folder = self.settings.value("death/last_folder", type=str)
+                last_pdf = self.settings.value("death/last_pdf", type=str)
+                if last_folder and os.path.isdir(last_folder):
+                    if last_pdf and os.path.isfile(last_pdf):
+                        self.pending_select_pdf = last_pdf
+                    self.load_pdfs(last_folder)
+                self._initial_show = False
             AuditLogger.log_action(
                 conn,
                 self.current_user,
@@ -1100,7 +1117,7 @@ class DeathTaggingWindow(QWidget):
             # Line edits
             self.page_no_input, self.book_no_input, self.reg_no_input, self.name_input,
             self.age_input, self.age_months_input, self.age_days_input, self.age_hours_input,
-            self.age_mins_input, self.cause_of_death_input,
+            self.age_mins_input, self.cause_of_death_input, self.residence_input,
             # Combo boxes
             self.sex_combo, self.civil_status_combo, self.nationality_combo, self.death_place_input,
             self.corpse_disposal_combo, self.late_reg_combo,

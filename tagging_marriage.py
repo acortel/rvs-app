@@ -82,6 +82,7 @@ class MarriageTaggingWindow(QWidget):
         self.last_date_of_marriage = None
         self.settings = QSettings("OCCR", "RVS")
         self.pending_select_pdf = None
+        self._initial_show = True
 
         self.init_ui()
     
@@ -1046,13 +1047,16 @@ class MarriageTaggingWindow(QWidget):
         super().showEvent(event)
         conn = self.create_connection()
         try:
-            # attempt to restore last session state
-            last_folder = self.settings.value("marriage/last_folder", type=str)
-            last_pdf = self.settings.value("marriage/last_pdf", type=str)
-            if last_folder and os.path.isdir(last_folder):
-                if last_pdf and os.path.isfile(last_pdf):
-                    self.pending_select_pdf = last_pdf
-                self.load_pdfs(last_folder)
+            # Only restore session state on initial window show, not on minimize/restore
+            if self._initial_show:
+                # attempt to restore last session state
+                last_folder = self.settings.value("marriage/last_folder", type=str)
+                last_pdf = self.settings.value("marriage/last_pdf", type=str)
+                if last_folder and os.path.isdir(last_folder):
+                    if last_pdf and os.path.isfile(last_pdf):
+                        self.pending_select_pdf = last_pdf
+                    self.load_pdfs(last_folder)
+                self._initial_show = False
             AuditLogger.log_action(
                 conn,
                 self.current_user,

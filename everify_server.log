@@ -14672,3 +14672,73 @@ requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://w
  * Running on http://127.0.0.1:5000
  * Running on http://192.168.254.108:5000
 [2026-03-19 15:15:45,445] INFO in _internal: [33mPress CTRL+C to quit[0m
+[2026-04-20 08:42:23,431] DEBUG in connectionpool: Starting new HTTPS connection (1): api.ipify.org:443
+[2026-04-20 08:42:24,485] DEBUG in connectionpool: https://api.ipify.org:443 "GET /?format=text HTTP/1.1" 200 13
+[2026-04-20 08:42:24,487] INFO in app: Server Public IP: 216.247.26.35
+[2026-04-20 08:42:25,157] DEBUG in __init__: CACHEDIR=C:\Users\ThisPC\.matplotlib
+[2026-04-20 08:42:25,161] DEBUG in font_manager: Using fontManager instance from C:\Users\ThisPC\.matplotlib\fontlist-v390.json
+[2026-04-20 08:42:25,823] INFO in _internal: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.108:5000
+[2026-04-20 08:42:25,823] INFO in _internal: [33mPress CTRL+C to quit[0m
+[2026-04-20 08:45:22,438] DEBUG in connectionpool: Starting new HTTPS connection (1): api.ipify.org:443
+[2026-04-20 08:45:23,351] DEBUG in connectionpool: https://api.ipify.org:443 "GET /?format=text HTTP/1.1" 200 13
+[2026-04-20 08:45:23,353] INFO in app: Server Public IP: 216.247.26.35
+[2026-04-20 08:45:23,580] DEBUG in __init__: CACHEDIR=C:\Users\ThisPC\.matplotlib
+[2026-04-20 08:45:23,582] DEBUG in font_manager: Using fontManager instance from C:\Users\ThisPC\.matplotlib\fontlist-v390.json
+[2026-04-20 08:45:23,986] INFO in _internal: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.108:5000
+[2026-04-20 08:45:23,987] INFO in _internal: [33mPress CTRL+C to quit[0m
+[2026-04-20 08:50:04,569] DEBUG in connectionpool: Starting new HTTPS connection (1): api.ipify.org:443
+[2026-04-20 08:50:05,412] DEBUG in connectionpool: https://api.ipify.org:443 "GET /?format=text HTTP/1.1" 200 13
+[2026-04-20 08:50:05,414] INFO in app: Server Public IP: 216.247.26.35
+[2026-04-20 08:50:05,640] DEBUG in __init__: CACHEDIR=C:\Users\ThisPC\.matplotlib
+[2026-04-20 08:50:05,643] DEBUG in font_manager: Using fontManager instance from C:\Users\ThisPC\.matplotlib\fontlist-v390.json
+[2026-04-20 08:50:06,047] INFO in _internal: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.108:5000
+[2026-04-20 08:50:06,047] INFO in _internal: [33mPress CTRL+C to quit[0m
+[2026-04-20 08:51:43,210] DEBUG in connectionpool: Starting new HTTPS connection (1): api.ipify.org:443
+[2026-04-20 08:51:44,051] DEBUG in connectionpool: https://api.ipify.org:443 "GET /?format=text HTTP/1.1" 200 13
+[2026-04-20 08:51:44,053] INFO in app: Server Public IP: 216.247.26.35
+[2026-04-20 08:51:44,276] DEBUG in __init__: CACHEDIR=C:\Users\ThisPC\.matplotlib
+[2026-04-20 08:51:44,278] DEBUG in font_manager: Using fontManager instance from C:\Users\ThisPC\.matplotlib\fontlist-v390.json
+[2026-04-20 08:51:44,682] INFO in _internal: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.108:5000
+[2026-04-20 08:51:44,682] INFO in _internal: [33mPress CTRL+C to quit[0m
+[2026-04-20 09:00:29,695] DEBUG in connectionpool: Starting new HTTPS connection (1): api.ipify.org:443
+[2026-04-20 09:00:30,567] DEBUG in connectionpool: https://api.ipify.org:443 "GET /?format=text HTTP/1.1" 200 13
+[2026-04-20 09:00:30,569] INFO in app: Server Public IP: 216.247.26.35
+[2026-04-20 09:00:30,813] DEBUG in __init__: CACHEDIR=C:\Users\ThisPC\.matplotlib
+[2026-04-20 09:00:30,815] DEBUG in font_manager: Using fontManager instance from C:\Users\ThisPC\.matplotlib\fontlist-v390.json
+[2026-04-20 09:00:31,230] INFO in _internal: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.108:5000
+[2026-04-20 09:00:31,230] INFO in _internal: [33mPress CTRL+C to quit[0m
+[2026-04-20 09:04:02,489] DEBUG in connectionpool: Starting new HTTPS connection (1): api.ipify.org:443
+[2026-04-20 09:04:03,318] DEBUG in connectionpool: https://api.ipify.org:443 "GET /?format=text HTTP/1.1" 200 13
+[2026-04-20 09:04:03,320] INFO in app: Server Public IP: 216.247.26.35
+[2026-04-20 09:04:03,542] DEBUG in __init__: CACHEDIR=C:\Users\ThisPC\.matplotlib
+[2026-04-20 09:04:03,544] DEBUG in font_manager: Using fontManager instance from C:\Users\ThisPC\.matplotlib\fontlist-v390.json
+[2026-04-20 09:04:03,946] INFO in _internal: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.108:5000
+[2026-04-20 09:04:03,946] INFO in _internal: [33mPress CTRL+C to quit[0m
+[2026-04-20 09:11:05,295] DEBUG in connectionpool: Starting new HTTPS connection (1): api.ipify.org:443
+[2026-04-20 09:11:06,168] DEBUG in connectionpool: https://api.ipify.org:443 "GET /?format=text HTTP/1.1" 200 13
+[2026-04-20 09:11:06,169] INFO in app: Server Public IP: 216.247.26.35
+[2026-04-20 09:11:06,406] DEBUG in __init__: CACHEDIR=C:\Users\ThisPC\.matplotlib
+[2026-04-20 09:11:06,408] DEBUG in font_manager: Using fontManager instance from C:\Users\ThisPC\.matplotlib\fontlist-v390.json
+[2026-04-20 09:11:06,818] INFO in _internal: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.254.108:5000
+[2026-04-20 09:11:06,820] INFO in _internal: [33mPress CTRL+C to quit[0m
