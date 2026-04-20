@@ -128,4 +128,6 @@
 
 -- ALTER TABLE death_index ADD COLUMN IF NOT EXISTS attendant VARCHAR(255) NULL;
 
-ALTER TABLE birth_index RENAME COLUMN father_age_age TO father_age;
+-- ALTER TABLE birth_index RENAME COLUMN father_age_age TO father_age;
+
+-- ALTER TABLE death_index ADD COLUMN IF NOT EXISTS residence VARCHAR(255) NULL;
